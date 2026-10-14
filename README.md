@@ -53,6 +53,10 @@ Host networking (`network_mode: host`) is used because Epson's network plugin
 does its own discovery and talks to the scanner directly. Docker Desktop on
 Mac/Windows does not support it properly; use a Linux host.
 
+On an Ubuntu server, check `uname -m` says `x86_64`, and if `ufw` is on, open
+the web port: `sudo ufw allow 8680/tcp`. The container reaches the scanner
+on its own; it only needs outgoing access to the scanner's IP.
+
 Epson only ships an x86_64 driver, so the compose file pins
 `platform: linux/amd64`. On an ARM machine (Apple Silicon, Raspberry Pi) the
 image builds and runs under emulation: fine for testing, slow for OCR.

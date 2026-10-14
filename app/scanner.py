@@ -197,21 +197,20 @@ class SaneBackend:
         return f"epsonscan2:networkscanner:esci2:network:{ip}" if ip else None
 
     def configure_network(self, ip):
-        """Tell Epson's network plugin where the scanner is (manual 8.1.2 / 10.5)."""
+        """Tell Epson's network plugin where the scanner is (manual 8.1.2 / 10.5).
+
+        Writes the same file, in the same format, as `epsonscan2 --set-ip`
+        (checked against driver 6.7.80). That command is part of Epson's Qt GUI
+        app, which isn't installed in the image; the SANE backend only reads
+        this file."""
         if not ip:
             return
-        if shutil.which("epsonscan2"):
-            try:
-                subprocess.run(["epsonscan2", "--set-ip", ip], capture_output=True, timeout=30)
-            except Exception as e:
-                log.debug("epsonscan2 --set-ip failed: %s", e)
-        for home in (Path.home(), Path("/home")):
-            try:
-                d = home / ".epsonscan2" / "Network"
-                d.mkdir(parents=True, exist_ok=True)
-                (d / "epsonscan2.conf").write_text(f"[Network]\n{ip}\n")
-            except OSError as e:
-                log.debug("could not write network conf in %s: %s", home, e)
+        try:
+            d = Path.home() / ".epsonscan2" / "Network"
+            d.mkdir(parents=True, exist_ok=True)
+            (d / "epsonscan2.conf").write_text(f"[Network]\n{ip}\n")
+        except OSError as e:
+            log.warning("Could not write Epson network config: %s", e)
 
     def list_devices(self):
         if not shutil.which("scanimage"):
@@ -222,7 +221,10 @@ class SaneBackend:
     def options(self, dev):
         rc, out, err = self._run(["scanimage", "-d", dev, "-A"], timeout=60)
         if rc != 0 and not out:
-            raise RuntimeError(err.strip() or f"scanimage -A failed ({rc})")
+            lines = [l.strip() for l in err.splitlines() if l.strip()]
+            # Skip notices like "Output format is not set, using pnm as a default."
+            msg = next((l for l in reversed(lines) if l.startswith("scanimage:")), lines[-1] if lines else "")
+            raise RuntimeError(msg or f"scanimage -A failed ({rc})")
         return parse_options(out)
 
     def scan(self, dev, args, outdir, on_page=None, stall_timeout=180):

@@ -77,3 +77,27 @@ def test_build_args_list_resolution_and_extra_args():
     o = parse_options("    --resolution 75|150|300|600dpi [300]\n")
     args = build_args(o, _s(document={"resolution": 400}, scanner={"extra_args": "-y 356"}), "document")
     assert args == ["--resolution", "300", "-y", "356"]
+
+
+def test_configure_network_writes_epson_conf(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from app.scanner import SaneBackend
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    SaneBackend().configure_network("192.168.1.50")
+    # Byte-for-byte what `epsonscan2 --set-ip 192.168.1.50` writes.
+    assert (tmp_path / ".epsonscan2/Network/epsonscan2.conf").read_text() == "[Network]\n192.168.1.50\n"
+    SaneBackend().configure_network("")  # blank IP leaves the file alone
+    assert "192.168.1.50" in (tmp_path / ".epsonscan2/Network/epsonscan2.conf").read_text()
+
+
+def test_options_error_reports_scanimage_line(monkeypatch):
+    import pytest
+
+    from app.scanner import SaneBackend
+    err = ("Output format is not set, using pnm as a default.\n"
+           "scanimage: open of device epsonscan2:networkscanner:esci2:network:192.0.2.5 failed: Error during device I/O\n")
+    monkeypatch.setattr(SaneBackend, "_run", staticmethod(lambda cmd, timeout: (1, "", err)))
+    with pytest.raises(RuntimeError) as e:
+        SaneBackend().options("dev")
+    assert str(e.value).startswith("scanimage: open of device") and "\n" not in str(e.value)
