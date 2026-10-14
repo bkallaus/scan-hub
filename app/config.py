@@ -147,6 +147,10 @@ def _validate(s):
     s["document"]["blank_sensitivity"] = max(0.0, min(20.0, s["document"]["blank_sensitivity"]))
     s["watch"]["stable_seconds"] = max(1, min(600, s["watch"]["stable_seconds"]))
     s["watch"]["interval_seconds"] = max(2, min(600, s["watch"]["interval_seconds"]))
+    ip = s["scanner"]["ip"].strip()
+    if ip and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.:\-]*", ip):
+        raise ValueError("Scanner IP must be an IP address or host name, e.g. 192.168.1.50")
+    s["scanner"]["ip"] = ip
     lang = s["document"]["ocr_lang"].strip() or "eng"
     if not re.fullmatch(r"[A-Za-z_]+(\+[A-Za-z_]+)*", lang):
         raise ValueError("OCR language must be Tesseract codes like eng or eng+spa")

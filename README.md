@@ -35,11 +35,12 @@ Open `http://<docker-host-ip>:8680`. The header pill should go from
 *Connecting* to *Ready* and show a device name like
 `epsonscan2:FF-680W:…:network:192.168.1.50`.
 
-The build downloads Epson's Linux driver bundle (`epsonscan2` +
-`epsonscan2-non-free-plugin`, which provides network scanning). If that URL
-ever stops working, download the **x86_64 .deb bundle** from
-<https://support.epson.net/linux/en/epsonscan2.php>, put the `.tar.gz` in
-`vendor/`, and rebuild. If apt complains about unmet dependencies for the
+The build needs Epson's Linux driver bundle (`epsonscan2` +
+`epsonscan2-non-free-plugin`, which provides network scanning). Epson's CDN
+usually refuses scripted downloads (HTTP 403), so download the **deb, 64bit
+(x86_64)** bundle from <https://support.epson.net/linux/en/epsonscan2.php> in a
+browser and put the `.tar.gz` in `vendor/` before building. The build falls
+back to downloading it only when `vendor/` is empty. If apt complains about unmet dependencies for the
 Epson packages, build on a newer Ubuntu:
 `docker compose build --build-arg BASE_IMAGE=ubuntu:24.04`.
 
@@ -51,6 +52,10 @@ compose value again.
 Host networking (`network_mode: host`) is used because Epson's network plugin
 does its own discovery and talks to the scanner directly. Docker Desktop on
 Mac/Windows does not support it properly; use a Linux host.
+
+Epson only ships an x86_64 driver, so the compose file pins
+`platform: linux/amd64`. On an ARM machine (Apple Silicon, Raspberry Pi) the
+image builds and runs under emulation: fine for testing, slow for OCR.
 
 ## 2. Connect Google Drive
 
@@ -152,6 +157,23 @@ Set `SIMULATE_SCANNER: "1"` in `docker-compose.yml`. A fake FF-680W appears and
 a yellow bar on the page lets you "load" pages. Everything else (PDFs, photos,
 Drive uploads, watch folder) runs for real.
 
+On Docker Desktop (no host networking) use the dev override, which publishes
+port 8680, turns on the simulator and keeps its data in `./data-dev`:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+Without the Epson bundle you can still build a simulator-only image:
+`docker compose build --build-arg INSTALL_EPSON_DRIVER=false`.
+
+## Tests
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+.venv/bin/python -m pytest
+```
+
 ## Data layout (`./data`)
 
 ```
@@ -165,6 +187,9 @@ watch/                    drop folder; watch/_uploaded after upload
 ## Security
 
 The page has no login by default; anyone on your LAN can change settings and
-start scans. Set `WEB_PASSWORD` to require a password (any username). The
+start scans. Set `WEB_PASSWORD` to require a password (any username).
+Requests that change something are refused when they come from another
+website (checked with the browser's `Origin` header), so a page you visit
+can't start scans or disconnect Drive behind your back. The
 Google permission only covers files ScanHub created; you can revoke it any time
 at <https://myaccount.google.com/permissions> or with *Disconnect*.

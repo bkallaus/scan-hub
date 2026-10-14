@@ -10,6 +10,8 @@ FROM ${BASE_IMAGE}
 ARG EPSON_BUNDLE_URL=https://download-center.epson.com/f/module/ee3a3a45-95aa-4c80-b14d-ad4cff5f7428/epsonscan2-bundle-6.7.90.0.x86_64.deb.tar.gz
 # Set to false for a smaller image without searchable-PDF (OCR) support.
 ARG INSTALL_OCR=true
+# Set to false to build without Epson's driver (only useful with SIMULATE_SCANNER=1).
+ARG INSTALL_EPSON_DRIVER=true
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -17,9 +19,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
     DATA_DIR=/data \
     WEB_PORT=8680
 
+# psmisc: the epsonscan2 backend shells out to killall.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       sane-utils python3 python3-venv curl ca-certificates tzdata \
+      psmisc \
  && if [ "$INSTALL_OCR" = "true" ]; then \
       apt-get install -y --no-install-recommends ocrmypdf tesseract-ocr tesseract-ocr-eng ; fi \
  && rm -rf /var/lib/apt/lists/*
@@ -29,9 +33,16 @@ COPY vendor/ /tmp/vendor/
 # backends from /etc/sane.d/dll.d (epsonscan2). Discovery is faster and the
 # generic epson2 backend can't grab the scanner first.
 RUN set -eux; \
+    if [ "$INSTALL_EPSON_DRIVER" != "true" ]; then \
+      echo "Skipping Epson driver: this image can only run with SIMULATE_SCANNER=1"; \
+      rm -rf /tmp/vendor; exit 0; \
+    fi; \
     bundle="$(ls /tmp/vendor/epsonscan2-bundle-*x86_64.deb.tar.gz 2>/dev/null | head -n1 || true)"; \
     if [ -z "$bundle" ]; then \
-      curl -fL --retry 3 -o /tmp/epsonscan2-bundle.tar.gz "$EPSON_BUNDLE_URL"; \
+      curl -fL --retry 3 -o /tmp/epsonscan2-bundle.tar.gz "$EPSON_BUNDLE_URL" || { \
+        echo "Could not download Epson's driver (Epson's CDN often blocks scripted downloads)." >&2; \
+        echo "Download the deb x86_64 bundle from https://support.epson.net/linux/en/epsonscan2.php" >&2; \
+        echo "in a browser, put the .tar.gz in ./vendor/ and build again." >&2; exit 1; }; \
       bundle=/tmp/epsonscan2-bundle.tar.gz; \
     fi; \
     mkdir /tmp/es2; tar -xzf "$bundle" -C /tmp/es2 --strip-components=1; \

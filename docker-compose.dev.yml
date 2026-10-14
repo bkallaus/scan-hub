@@ -1,0 +1,12 @@
+# Local test run with the simulated scanner, e.g. on Docker Desktop (Mac/Windows),
+# where host networking isn't available:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+services:
+  scanhub:
+    network_mode: !reset bridge
+    ports:
+      - "8680:8680"
+    environment:
+      SIMULATE_SCANNER: "1"
+    volumes: !override
+      - ./data-dev:/data

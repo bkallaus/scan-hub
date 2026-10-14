@@ -194,8 +194,11 @@ class Drive:
                 "client_id": s["client_id"], "client_secret": s["client_secret"],
                 "refresh_token": self.token["refresh_token"], "grant_type": "refresh_token",
             }, timeout=20)
-            d = r.json() if r.content else {}
-            if r.status_code != 200:
+            try:
+                d = r.json()
+            except ValueError:  # e.g. an HTML 5xx page from a Google outage
+                d = {}
+            if r.status_code != 200 or "access_token" not in d:
                 if d.get("error") in ("invalid_grant", "unauthorized_client", "invalid_client"):
                     self.token = {}
                     TOKEN_FILE.unlink(missing_ok=True)

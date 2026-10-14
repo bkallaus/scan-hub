@@ -131,7 +131,8 @@ class Store:
 
     def retry_all_errors(self):
         with self._lock:
-            self.db.execute("UPDATE items SET status='pending', next_try=0, attempts=0, error=NULL WHERE status='error'")
+            self.db.execute("UPDATE items SET status='pending', next_try=0, attempts=0, error=NULL, updated=?"
+                            " WHERE status='error'", (time.time(),))
             self.db.commit()
 
     def queue_local(self):

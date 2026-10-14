@@ -4,6 +4,7 @@ import logging
 import secrets
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import uvicorn
 from starlette.applications import Starlette
@@ -28,19 +29,31 @@ from .watcher import watcher  # noqa: E402
 STATIC = Path(__file__).parent / "static"
 
 
+SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
+
+
 class BasicAuth(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
+        # A web page on any other site can make the browser send a plain form
+        # POST to this LAN address (no CORS preflight), with saved Basic-auth
+        # credentials attached. Browsers always send Origin on such requests,
+        # so refuse state-changing requests whose Origin isn't this page.
+        origin = request.headers.get("origin")
+        if request.method not in SAFE_METHODS and origin is not None:
+            if urlsplit(origin).netloc != request.headers.get("host", ""):
+                return Response("Cross-site request refused", 403)
         if WEB_PASSWORD and request.url.path != "/healthz":
             hdr = request.headers.get("authorization", "")
             ok = False
             if hdr.lower().startswith("basic "):
                 try:
-                    _, _, pw = base64.b64decode(hdr[6:]).decode().partition(":")
-                    ok = secrets.compare_digest(pw, WEB_PASSWORD)
+                    _, _, pw = base64.b64decode(hdr[6:], validate=True).partition(b":")
+                    # Compare bytes: compare_digest rejects non-ASCII str.
+                    ok = secrets.compare_digest(pw, WEB_PASSWORD.encode())
                 except Exception:
                     ok = False
             if not ok:
-                return Response("Authentication required", 401, {"WWW-Authenticate": 'Basic realm="ScanHub"'})
+                return Response("Authentication required", 401, {"WWW-Authenticate": 'Basic realm="ScanHub", charset="UTF-8"'})
         return await call_next(request)
 
 

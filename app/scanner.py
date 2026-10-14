@@ -31,6 +31,8 @@ EMPTY_RE = re.compile(r"out of documents|no more documents|no docs|feeder.*empty
 BUSY_RE = re.compile(r"device busy", re.I)
 OFFLINE_RE = re.compile(r"open of device|device I/O|No scanner found|Invalid argument|timed out|"
                         r"connection|unreachable|no route", re.I)
+# scanimage --batch progress chatter on stderr; not errors.
+PROGRESS_RE = re.compile(r"^(Scanning (-?\d+|infinity) pages|Scanning page \d+|Scanned page \d+|Batch terminated)", re.I)
 HOLD_PROBE_SECONDS = 45  # probe mode can't see the tray, so pause this long after an early stop
 OFFLINE_MSG = "Can't reach the scanner. Is it switched on? Retrying automatically…"
 SENSOR_RE = re.compile(
@@ -96,9 +98,7 @@ def parse_options(text):
                 break
             brackets.insert(0, bm.group(1))
             rest = rest[: bm.start()]
-        spec = m.group(3) if m.group(3) else rest.strip()
-        if m.group(3):
-            spec = m.group(3)
+        spec = m.group(3) or rest.strip()
         opt = SaneOption(name=name, spec=spec)
         if brackets:
             opt.current = brackets[0]
@@ -561,7 +561,7 @@ class ScanService(threading.Thread):
         except Exception:
             shutil.rmtree(job, ignore_errors=True)
             raise
-        lines = [l.strip() for l in err.splitlines() if l.strip()]
+        lines = [l.strip() for l in err.splitlines() if l.strip() and not PROGRESS_RE.match(l.strip())]
         # Prefer scanimage's own message over driver debug chatter.
         err_tail = next((l for l in reversed(lines) if l.startswith("scanimage:")), lines[-1] if lines else "")
         err_tail = err_tail[:300]

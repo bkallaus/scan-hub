@@ -1,6 +1,9 @@
 services:
   scanhub:
     build: .
+    # Epson only ships an x86_64 driver. On an ARM host (Raspberry Pi, Apple
+    # Silicon) this runs under emulation, which works but is slow.
+    platform: linux/amd64
     image: ff680w-scanhub:latest
     container_name: ff680w-scanhub
     # Host networking lets Epson's network plugin reach the scanner directly

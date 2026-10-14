@@ -163,7 +163,8 @@ def run_ocr(src, dst, lang):
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
         if p.returncode == 0:
             return dst
-        log.warning("OCR failed (%s): %s", p.returncode, p.stderr.strip().splitlines()[-1:] or "")
+        tail = p.stderr.strip().splitlines()
+        log.warning("OCR failed (%s): %s", p.returncode, tail[-1] if tail else "no error output")
     except subprocess.TimeoutExpired:
         log.warning("OCR timed out; saving PDF without text layer")
     return None
