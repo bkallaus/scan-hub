@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>ScanHub · FF-680W</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>ScanHub</h1>
+    <div class="sub">Epson FastFoto FF-680W</div>
+  </div>
+  <span id="pill" class="pill">…</span>
+</header>
+
+<main>
+  <div id="simbar" class="simbar" hidden>
+    Simulated scanner —
+    <button class="link" data-sim="3">load 3 pages</button> ·
+    <button class="link" data-sim="10">load 10</button>
+  </div>
+
+  <section class="card hero">
+    <div class="mode" role="radiogroup" aria-label="Scan mode">
+      <button data-mode="document" role="radio"><b>Documents</b><span>→ PDF</span></button>
+      <button data-mode="photo" role="radio"><b>Photos</b><span>→ JPEG / PNG / TIFF</span></button>
+    </div>
+    <p id="msg" class="msg">Connecting…</p>
+    <p id="proc" class="small"></p>
+    <p id="device" class="muted small"></p>
+    <div class="actions">
+      <button id="scanNow" class="primary">Scan now</button>
+      <button id="pause" class="ghost">Pause auto-scan</button>
+      <button id="finish" class="ghost" hidden>Finish PDF</button>
+    </div>
+  </section>
+
+  <section class="card" id="driveCard">
+    <div class="row between">
+      <h2>Google Drive</h2>
+      <span id="driveBadge" class="badge"></span>
+    </div>
+    <div id="driveBody"></div>
+  </section>
+
+  <section class="card">
+    <div class="row between">
+      <h2>Recent files</h2>
+      <button id="retryErrors" class="link small" hidden>Retry failed</button>
+    </div>
+    <ul id="items" class="items"><li class="muted">Nothing yet. Load paper into the scanner.</li></ul>
+  </section>
+
+  <section class="card settings">
+    <h2>Settings</h2>
+
+    <details open>
+      <summary>Documents (PDF)</summary>
+      <label>Resolution
+        <select data-key="document.resolution" data-type="int">
+          <option>150</option><option>200</option><option>300</option><option>400</option><option>600</option>
+        </select></label>
+      <label>Color
+        <select data-key="document.color">
+          <option value="color">Color</option><option value="gray">Grayscale</option><option value="bw">Black &amp; white</option>
+        </select></label>
+      <label class="check"><input type="checkbox" data-key="document.duplex"> Scan both sides</label>
+      <label class="check"><input type="checkbox" data-key="document.skip_blank"> Skip blank pages</label>
+      <label>Blank-page sensitivity <span class="hint">% ink below which a page counts as blank</span>
+        <input type="number" step="0.1" min="0" max="10" data-key="document.blank_sensitivity" data-type="float"></label>
+      <label>JPEG quality inside PDF
+        <input type="number" min="30" max="100" data-key="document.jpeg_quality" data-type="int"></label>
+      <label class="check"><input type="checkbox" data-key="document.ocr"> Make PDFs searchable (OCR)</label>
+      <label>OCR language <span class="hint">Tesseract code, e.g. eng, eng+spa</span>
+        <input data-key="document.ocr_lang"></label>
+      <label>Combine batches within (seconds) <span class="hint">0 = every batch is its own PDF</span>
+        <input type="number" min="0" max="600" data-key="document.combine_seconds" data-type="int"></label>
+      <label>File name <span class="hint">{date} {time} {n}</span>
+        <input data-key="document.filename"></label>
+    </details>
+
+    <details>
+      <summary>Photos</summary>
+      <label>Resolution
+        <select data-key="photo.resolution" data-type="int">
+          <option>300</option><option>600</option>
+        </select></label>
+      <label>Format
+        <select data-key="photo.format">
+          <option value="jpg">JPEG</option><option value="png">PNG</option><option value="tiff">TIFF</option>
+        </select></label>
+      <label>JPEG quality
+        <input type="number" min="30" max="100" data-key="photo.jpeg_quality" data-type="int"></label>
+      <label class="check"><input type="checkbox" data-key="photo.autocrop"> Auto-crop to the photo edge</label>
+      <label class="check"><input type="checkbox" data-key="photo.duplex"> Scan backs (kept as _b only if written on)</label>
+      <label>File name <span class="hint">{date} {time} {n}</span>
+        <input data-key="photo.filename"></label>
+    </details>
+
+    <details>
+      <summary>Scanner</summary>
+      <label>Scanner IP address <span class="hint">reserve it in your router</span>
+        <input inputmode="decimal" placeholder="192.168.1.50" data-key="scanner.ip"></label>
+      <label>Start scans
+        <select data-key="scanner.detection">
+          <option value="auto">Automatically when paper is loaded (auto-pick method)</option>
+          <option value="sensor">When the paper sensor / scan button fires</option>
+          <option value="probe">By trying the feeder every few seconds</option>
+          <option value="manual">Only when I press Scan now</option>
+        </select></label>
+      <label>Check every (seconds)
+        <input type="number" min="1" max="60" data-key="scanner.poll_seconds" data-type="int"></label>
+      <label>SANE device <span class="hint">blank = auto-detect</span>
+        <input data-key="scanner.device" list="devlist" placeholder="auto"><datalist id="devlist"></datalist></label>
+      <label>Extra scanimage options <span class="hint">advanced, e.g. -y 356</span>
+        <input data-key="scanner.extra_args"></label>
+      <div class="actions"><button id="rediscover" class="ghost">Reconnect scanner</button>
+        <button id="showOpts" class="ghost">Show driver options</button></div>
+      <pre id="opts" class="pre" hidden></pre>
+    </details>
+
+    <details>
+      <summary>Google Drive</summary>
+      <label>OAuth client ID
+        <input data-key="drive.client_id" autocomplete="off" placeholder="….apps.googleusercontent.com"></label>
+      <label>OAuth client secret
+        <input data-key="drive.client_secret" type="password" autocomplete="off"></label>
+      <label class="check"><input type="checkbox" data-key="drive.upload_scans"> Upload every scan</label>
+      <label>PDF folder <span class="hint">created in My Drive</span>
+        <input data-key="drive.pdf_folder"></label>
+      <label>Photo folder
+        <input data-key="drive.photo_folder"></label>
+      <label class="check"><input type="checkbox" data-key="drive.keep_local_scans"> Keep a local copy after upload</label>
+    </details>
+
+    <details>
+      <summary>Watch folder</summary>
+      <p class="muted small">Files placed in the container's <code>/data/watch</code> folder (map it to a NAS share) are uploaded. Sub-folders are mirrored in Drive.</p>
+      <label class="check"><input type="checkbox" data-key="watch.enabled"> Watch the folder</label>
+      <label class="check"><input type="checkbox" data-key="drive.upload_watch"> Upload new files</label>
+      <label>Drive folder
+        <input data-key="drive.watch_folder"></label>
+      <label>After upload
+        <select data-key="watch.after_upload">
+          <option value="move">Move to _uploaded</option><option value="delete">Delete</option><option value="keep">Leave in place</option>
+        </select></label>
+    </details>
+
+    <details id="logsBox">
+      <summary>Log</summary>
+      <pre id="logs" class="pre"></pre>
+    </details>
+  </section>
+</main>
+<div id="toast" class="toast" hidden></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

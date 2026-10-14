@@ -1,0 +1,20 @@
+services:
+  scanhub:
+    build: .
+    image: ff680w-scanhub:latest
+    container_name: ff680w-scanhub
+    # Host networking lets Epson's network plugin reach the scanner directly
+    # (it uses its own discovery/protocol). Web UI: http://<host-ip>:8680
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      TZ: America/Chicago
+      SCANNER_IP: 192.168.1.50        # your FF-680W's IP (reserve it in the router)
+      WEB_PORT: "8680"
+      # WEB_PASSWORD: change-me       # optional: protects the web UI (any username)
+      # GOOGLE_CLIENT_ID: ...         # optional: can be entered in the web UI instead
+      # GOOGLE_CLIENT_SECRET: ...
+      # SIMULATE_SCANNER: "1"         # test everything without the scanner
+    volumes:
+      - ./data:/data                  # settings, Google token, local copies of scans
+      # - /mnt/nas/scan-inbox:/data/watch   # optional: point the watch folder at a share
