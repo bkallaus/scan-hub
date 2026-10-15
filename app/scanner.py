@@ -34,7 +34,8 @@ OFFLINE_RE = re.compile(r"open of device|device I/O|No scanner found|Invalid arg
 # scanimage --batch progress chatter on stderr; not errors.
 PROGRESS_RE = re.compile(r"^(Scanning (-?\d+|infinity) pages|Scanning page \d+|Scanned page \d+|Batch terminated)", re.I)
 HOLD_PROBE_SECONDS = 45  # probe mode can't see the tray, so pause this long after an early stop
-OFFLINE_MSG = "Can't reach the scanner. Is it switched on? Retrying automatically…"
+OFFLINE_MSG = ("The scanner isn't answering. It's probably asleep or off: press its power button. "
+               "ScanHub reconnects automatically.")
 SENSOR_RE = re.compile(
     r"((adf|paper|page|doc|document|feeder|media).*(load|present|detect|exist|avail|in$))"
     r"|((load|present).*(adf|paper|page|doc))", re.I)
