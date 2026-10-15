@@ -149,15 +149,23 @@ def build_args(opts, s, mode):
         else:
             val = want
         args += ["--resolution", str(val)]
+    # Some drivers (the FF-680W's included) have a yes/no --duplex switch
+    # next to a plain "ADF" source instead of an "ADF Duplex" source.
+    sw = opts.get("duplex")
+    dup_switch = sw is not None and sw.is_bool and not sw.inactive
     o = opts.get("source")
     if o and not o.inactive and o.choices():
         dup = r"duplex|double|both|2[- ]?sided"
-        if sect["duplex"]:
+        if dup_switch:
+            v = _pick(o.choices(), [r"^adf$", r"adf|feeder"], avoid=r"front|back|" + dup)
+        elif sect["duplex"]:
             v = _pick(o.choices(), [dup])
         else:
             v = _pick(o.choices(), [r"front", r"simplex", r"adf", r"feeder", r"single"], avoid=dup)
         if v:
             args += ["--source", v]
+    if dup_switch:
+        args += ["--duplex", "yes" if sect["duplex"] else "no"]
     for name in SIZE_OPTS:
         o = opts.get(name)
         if o and not o.inactive and o.choices():

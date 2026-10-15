@@ -1,6 +1,7 @@
 from app.config import DEFAULTS
 from app.scanner import build_args, find_sensor, parse_devices, parse_options
 import copy
+from pathlib import Path
 
 SCANIMAGE_A = """
 All options specific to device `epsonscan2:networkscanner:esci2:network:192.168.1.50':
@@ -101,3 +102,36 @@ def test_options_error_reports_scanimage_line(monkeypatch):
     with pytest.raises(RuntimeError) as e:
         SaneBackend().options("dev")
     assert str(e.value).startswith("scanimage: open of device") and "\n" not in str(e.value)
+
+
+# Captured from a real FF-680W (driver 6.7.80) with `scanimage -A`.
+REAL_FF680W = (Path(__file__).parent / "ff680w_options.txt").read_text()
+
+
+def _arg(args, name):
+    return args[args.index(name) + 1] if name in args else None
+
+
+def test_real_ff680w_document_duplex():
+    o = parse_options(REAL_FF680W)
+    args = build_args(o, _s(document={"duplex": True, "color": "gray", "resolution": 300}), "document")
+    assert _arg(args, "--duplex") == "yes"
+    assert _arg(args, "--source") == "ADF"
+    assert _arg(args, "--mode") == "Grayscale"
+    assert _arg(args, "--resolution") == "300"
+    assert _arg(args, "--scan-area") == "Auto Detect"   # not "Manual" (the full 393 mm feed)
+
+
+def test_real_ff680w_simplex_and_photo():
+    o = parse_options(REAL_FF680W)
+    simplex = build_args(o, _s(document={"duplex": False}), "document")
+    assert _arg(simplex, "--duplex") == "no"
+    photo = build_args(o, _s(photo={"duplex": True}), "photo")
+    assert _arg(photo, "--duplex") == "yes" and _arg(photo, "--mode") == "Color"
+    bw = build_args(o, _s(document={"color": "bw"}), "document")
+    assert _arg(bw, "--mode") == "Monochrome"
+
+
+def test_real_ff680w_has_no_sensor():
+    # Nothing read-only to poll, so "auto" detection falls back to probing.
+    assert find_sensor(parse_options(REAL_FF680W)) == []
