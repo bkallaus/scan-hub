@@ -17,7 +17,10 @@ def test_healthz_and_index(client):
     assert client.get("/healthz").json()["ok"] is True
     r = client.get("/")
     assert r.status_code == 200 and "ScanHub" in r.text
-    assert client.get("/static/app.js").status_code == 200
+    js = client.get("/static/app.js")
+    assert js.status_code == 200 and js.headers["cache-control"] == "no-cache"
+    # unchanged files revalidate cheaply
+    assert client.get("/static/app.js", headers={"If-None-Match": js.headers["etag"]}).status_code == 304
 
 
 def test_status_shape(client):

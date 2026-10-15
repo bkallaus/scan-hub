@@ -58,6 +58,16 @@ class BasicAuth(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+class RevalidatedStatic(StaticFiles):
+    """Make browsers check for a newer app.js/style.css on every load (a cheap
+    304 when unchanged). Otherwise an updated page can run with stale script."""
+
+    def file_response(self, *args, **kwargs):
+        resp = super().file_response(*args, **kwargs)
+        resp.headers["Cache-Control"] = "no-cache"
+        return resp
+
+
 def err(msg, code=400):
     return JSONResponse({"error": msg}, status_code=code)
 
@@ -250,7 +260,7 @@ routes = [
     Route("/files/{id:int}", item_file),
     Route("/api/logs", logs),
     Route("/api/simulate/load", sim_load, methods=["POST"]),
-    Mount("/static", StaticFiles(directory=STATIC), name="static"),
+    Mount("/static", RevalidatedStatic(directory=STATIC), name="static"),
 ]
 
 app = Starlette(routes=routes, middleware=[Middleware(BasicAuth)])
