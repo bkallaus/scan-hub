@@ -5,3 +5,4 @@ __pycache__/
 .pytest_cache/
 vendor/*.tar.gz
 data-dev/
+dist/
