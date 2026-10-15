@@ -68,25 +68,38 @@ const ICONS = {
   image: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 16-5-5-8 8"/>',
   archive: '<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
 };
-const GROUPS = { document: "Documents → PDF", photo: "Photos → image files" };
+const GROUPS = {
+  document: ["Documents", "PDF · both sides · blank pages removed"],
+  photo: ["Photos", "One file per photo · auto-cropped"],
+};
+const BTN_ICONS = {
+  pause: '<rect x="6.5" y="5" width="3.5" height="14" rx="1"/><rect x="14" y="5" width="3.5" height="14" rx="1"/>',
+  play: '<path d="M7 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L8.5 4.64A1 1 0 0 0 7 5.5z"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+};
+function setBtn(el, icon, label) {
+  el.innerHTML = `<svg class="bico" viewBox="0 0 24 24" aria-hidden="true">${BTN_ICONS[icon]}</svg><span>${esc(label)}</span>`;
+}
 let presets = [];
 
 function renderPresets() {
-  $("#presets").innerHTML = Object.entries(GROUPS).map(([mode, label]) => `
-    <h3 class="group">${label}</h3>
+  $("#presets").innerHTML = Object.entries(GROUPS).map(([mode, [label, sub]]) => `
+    <div class="group"><b>${label}</b><span>${sub}</span></div>
     <div class="preset-grid">${presets.filter((p) => p.mode === mode).map((p) => `
       <button class="preset" role="radio" aria-checked="false" data-preset="${esc(p.id)}">
-        <svg class="pico" viewBox="0 0 24 24" aria-hidden="true">${ICONS[p.icon] || ICONS.doc}</svg>
-        <span class="ptitle">${esc(p.title)}${p.recommended ? ' <span class="rec">Recommended</span>' : ""}</span>
+        ${p.recommended ? '<span class="rec">Recommended</span>' : ""}
+        <span class="phead"><svg class="pico" viewBox="0 0 24 24" aria-hidden="true">${ICONS[p.icon] || ICONS.doc}</svg>
+          <span class="ptitle">${esc(p.title)}</span></span>
         <span class="pdesc">${esc(p.desc)}</span>
-        <span class="pspec">${p.spec.split(" · ").map((x) => `<span>${esc(x)}</span>`).join(" · ")}</span>
+        <span class="pspec">${esc(p.spec)}</span>
       </button>`).join("")}
     </div>`).join("");
   $$("[data-preset]").forEach((b) => (b.onclick = async () => {
     try {
       settings = await api(`/api/presets/${b.dataset.preset}/apply`, { method: "POST" });
       fillForm(); markPreset(b.dataset.preset);
-      toast(presets.find((p) => p.id === b.dataset.preset).title);
+      const p = presets.find((x) => x.id === b.dataset.preset);
+      toast(`${GROUPS[p.mode][0]}: ${p.title}`);
       refresh();
     } catch (e) { toast("Not changed: " + e.message); }
   }));
@@ -128,16 +141,22 @@ function renderStatus(st) {
   const [label, cls] = STATE[sc.state] || [sc.state, ""];
   const pill = $("#pill"); pill.textContent = label; pill.className = "pill " + cls;
   $("#msg").textContent = sc.message;
-  $("#device").textContent = sc.device
-    ? `${sc.device} · start: ${sc.detection}${sc.sensors.length ? " (" + sc.sensors.join(", ") + ")" : ""}`
-    : "";
-  $("#pause").textContent = st.paused ? "Resume auto-scan" : "Pause auto-scan";
+  const ip = (sc.device || "").match(/network:([\w.:-]+)$/);
+  const where = sc.backend === "simulated" ? "Simulated FF-680W" : ip ? `FF-680W at ${ip[1]}` : sc.device;
+  const how = { sensor: "scans when paper is loaded", probe: "checks the feeder every few seconds",
+                manual: "scans when you tap Scan now" }[sc.detection];
+  $("#device").textContent = sc.device ? [where, st.paused ? null : how].filter(Boolean).join(" · ") : "";
+  $("#device").title = sc.device || "";
+  if (renderStatus._paused !== st.paused) {
+    renderStatus._paused = st.paused;
+    setBtn($("#pause"), st.paused ? "play" : "pause", st.paused ? "Resume auto-scan" : "Pause auto-scan");
+  }
   $("#scanNow").disabled = ["scanning", "starting", "offline"].includes(sc.state);
   $("#proc").textContent = sc.processing ? `Converting ${sc.processing} batch${sc.processing > 1 ? "es" : ""} in the background…` : "";
   const pd = sc.pending_document;
   $("#finish").hidden = !pd;
   if (pd) {
-    $("#finish").textContent = `Finish PDF (${pd.pages} pages)`;
+    setBtn($("#finish"), "check", `Finish PDF (${pd.pages} page${pd.pages === 1 ? "" : "s"})`);
     if (sc.state === "idle") $("#msg").textContent = `Load more pages within ${pd.seconds_left}s to add to this PDF, or tap Finish`;
   }
   $("#simbar").hidden = !st.simulate;

@@ -32,9 +32,10 @@ def test_manual_change_becomes_custom():
 
 def test_spec_lines():
     by_id = {p["id"]: preset_spec(p) for p in PRESETS}
-    assert by_id["doc_standard"] == "300 dpi · Color · PDF · 2-sided"
-    assert by_id["doc_high"] == "600 dpi · Color · searchable PDF · 2-sided"
-    assert by_id["photo_archive"] == "1200 dpi · TIFF · + backs"
+    assert by_id["doc_standard"] == "300 dpi · Color"
+    assert by_id["doc_high"] == "600 dpi · Color · Searchable"
+    assert by_id["photo_quick"] == "300 dpi · JPEG"
+    assert by_id["photo_archive"] == "1200 dpi · TIFF · Backs"
 
 
 def test_presets_api():

@@ -68,6 +68,19 @@ def test_file_download_restricted_to_data_dir(client, tmp_path):
     assert client.get(f"/files/{bad}").status_code == 404
 
 
+def test_only_scans_open_inline(client):
+    folder = DATA_DIR / "watch"
+    folder.mkdir(parents=True, exist_ok=True)
+    pdf, page = folder / "a.pdf", folder / "evil.html"
+    pdf.write_bytes(b"%PDF")
+    page.write_text("<script>alert(1)</script>")
+    r = client.get(f"/files/{store.add(pdf, 'a.pdf', 'pdf', 'watch', 'f', 'done')}")
+    assert r.headers["content-disposition"].startswith("inline")
+    assert r.headers["x-content-type-options"] == "nosniff"
+    r = client.get(f"/files/{store.add(page, 'evil.html', 'file', 'watch', 'f', 'done')}")
+    assert r.headers["content-disposition"].startswith("attachment")
+
+
 def test_sim_load_validation(client):
     assert client.post("/api/simulate/load", json={"pages": "x"}).status_code == 400
     assert client.post("/api/simulate/load", json={"pages": 2}).status_code == 200

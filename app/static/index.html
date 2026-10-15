@@ -24,16 +24,20 @@
   </div>
 
   <section class="card hero">
-    <div id="presets" class="presets" role="radiogroup" aria-label="What are you scanning?"></div>
-    <p id="custom" class="small muted" hidden>Custom settings in use. Pick a preset above, or adjust them under <b>All settings</b>.</p>
     <p id="msg" class="msg">Connecting…</p>
-    <p id="proc" class="small"></p>
     <p id="device" class="muted small"></p>
+    <p id="proc" class="small"></p>
     <div class="actions">
-      <button id="scanNow" class="primary">Scan now</button>
-      <button id="pause" class="ghost">Pause auto-scan</button>
-      <button id="finish" class="ghost" hidden>Finish PDF</button>
+      <button id="scanNow" class="primary"><svg class="bico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M4 12h16"/></svg><span>Scan now</span></button>
+      <button id="pause" class="ghost"></button>
+      <button id="finish" class="ghost" hidden></button>
     </div>
+  </section>
+
+  <section class="card">
+    <h2>What are you scanning?</h2>
+    <div id="presets" class="presets" role="radiogroup" aria-label="What are you scanning?"></div>
+    <p id="custom" class="small muted" hidden>Custom settings in use. Pick a preset, or adjust them under <b>All settings</b>.</p>
   </section>
 
   <section class="card" id="driveCard">

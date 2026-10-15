@@ -220,7 +220,12 @@ def item_file(request: Request):
     p = Path(i["path"]).resolve()
     if not p.is_file() or DATA_DIR.resolve() not in p.parents:
         return err("file no longer on disk", 404)
-    return FileResponse(p, filename=p.name, content_disposition_type="inline")
+    # Only scans open in the browser. Anything else (e.g. an .html or .svg
+    # dropped in the watch folder) would run its scripts as this page, so it
+    # downloads instead; nosniff stops the browser second-guessing the type.
+    inline = i["kind"] in ("pdf", "photo")
+    return FileResponse(p, filename=p.name, content_disposition_type="inline" if inline else "attachment",
+                        headers={"X-Content-Type-Options": "nosniff"})
 
 
 def logs(_):

@@ -256,49 +256,49 @@ class Settings:
 # One-tap scan presets shown on the web page. Each sets every option that
 # shapes the result, so applying one always gives the same output.
 PRESETS = [
-    {"id": "doc_quick", "icon": "bolt", "title": "Quick document",
-     "desc": "Receipts, notes and mail. Smallest files.",
+    {"id": "doc_quick", "icon": "bolt", "title": "Quick",
+     "desc": "Receipts, notes, mail",
      "settings": {"mode": "document", "document": {
          "resolution": 200, "color": "gray", "jpeg_quality": 70, "ocr": False,
          "duplex": True, "skip_blank": True}}},
-    {"id": "doc_standard", "icon": "doc", "title": "Everyday document", "recommended": True,
-     "desc": "Letters, bills and forms. Good quality, small files.",
+    {"id": "doc_standard", "icon": "doc", "title": "Everyday", "recommended": True,
+     "desc": "Letters, bills, forms",
      "settings": {"mode": "document", "document": {
          "resolution": 300, "color": "color", "jpeg_quality": 80, "ocr": False,
          "duplex": True, "skip_blank": True}}},
-    {"id": "doc_high", "icon": "sparkle", "title": "High-quality document",
-     "desc": "Contracts, certificates, artwork. Text you can search and copy.",
+    {"id": "doc_high", "icon": "sparkle", "title": "High quality",
+     "desc": "Contracts, certificates, art",
      "settings": {"mode": "document", "document": {
          "resolution": 600, "color": "color", "jpeg_quality": 92, "ocr": True,
          "duplex": True, "skip_blank": True}}},
-    {"id": "photo_quick", "icon": "stack", "title": "Quick photos",
-     "desc": "Get through big boxes of prints fast.",
+    {"id": "photo_quick", "icon": "stack", "title": "Quick",
+     "desc": "Big boxes of prints, fast",
      "settings": {"mode": "photo", "photo": {
          "resolution": 300, "format": "jpg", "jpeg_quality": 85, "autocrop": True, "duplex": False}}},
-    {"id": "photo_standard", "icon": "image", "title": "Photos", "recommended": True,
-     "desc": "Albums and sharing. Keeps backs that have writing on them.",
+    {"id": "photo_standard", "icon": "image", "title": "Standard", "recommended": True,
+     "desc": "Albums and sharing",
      "settings": {"mode": "photo", "photo": {
          "resolution": 600, "format": "jpg", "jpeg_quality": 92, "autocrop": True, "duplex": True}}},
-    {"id": "photo_archive", "icon": "archive", "title": "Archival photos",
-     "desc": "Lossless masters for restoring and enlarging. Very large files.",
+    {"id": "photo_archive", "icon": "archive", "title": "Archival",
+     "desc": "Lossless, for enlarging. Large files",
      "settings": {"mode": "photo", "photo": {
          "resolution": 1200, "format": "tiff", "jpeg_quality": 92, "autocrop": True, "duplex": True}}},
 ]
 
 
 def preset_spec(p):
-    """Short summary line, e.g. '300 dpi · Color · PDF · 2-sided'."""
+    """Short summary line, e.g. '300 dpi · Color'. The group heading on the page
+    already says PDF / image files, two-sided and auto-crop."""
     mode = p["settings"]["mode"]
     o = p["settings"][mode]
     if mode == "document":
-        parts = [f"{o['resolution']} dpi", {"color": "Color", "gray": "Gray", "bw": "B&W"}[o["color"]],
-                 "searchable PDF" if o["ocr"] else "PDF"]
-        if o["duplex"]:
-            parts.append("2-sided")
+        parts = [f"{o['resolution']} dpi", {"color": "Color", "gray": "Gray", "bw": "B&W"}[o["color"]]]
+        if o["ocr"]:
+            parts.append("Searchable")
     else:
         parts = [f"{o['resolution']} dpi", {"jpg": "JPEG", "png": "PNG", "tiff": "TIFF"}[o["format"]]]
         if o["duplex"]:
-            parts.append("+ backs")
+            parts.append("Backs")
     return " · ".join(parts)
 
 
