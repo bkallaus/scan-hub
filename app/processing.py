@@ -69,16 +69,17 @@ def autocrop(img):
     return img.crop(box)
 
 
-NAME_FIELDS = ("date", "time", "n", "mode")
+NAME_FIELDS = ("date", "time", "n", "mode", "title")
 
 
-def render_name(template, n=1, mode="", now=None):
+def render_name(template, n=1, mode="", now=None, title=""):
     now = now or time.localtime()
     values = {
         "date": time.strftime("%Y-%m-%d", now),
         "time": time.strftime("%H%M%S", now),
         "n": f"{n:03d}",
         "mode": mode,
+        "title": title or "Scan",
     }
     try:
         name = template.format_map(values)
@@ -87,6 +88,82 @@ def render_name(template, n=1, mode="", now=None):
         name = "{mode}_{date}_{time}_{n}".format_map(values)
     keep = "".join(c if c.isalnum() or c in " ._-()" else "_" for c in name).strip()
     return keep or f"scan_{int(time.time())}"
+
+
+# Words that say what kind of document a line is naming, e.g. "INVOICE".
+DOC_WORDS = {
+    "agreement", "application", "bill", "certificate", "contract", "estimate",
+    "form", "invoice", "letter", "lease", "notice", "order", "policy", "quote",
+    "receipt", "record", "report", "statement", "summary", "warranty",
+}
+_NOISE = re.compile(r"@|https?:|www\.|\.com\b|\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}"
+                    r"|^(dear|page|to|from|re|date|tel|fax|phone)\b", re.I)
+
+
+def _clean_line(line):
+    """Keep only the plain words of an OCR line; drop stray OCR junk symbols."""
+    line = re.sub(r"['\u2019]", "", line.replace("&", " and "))
+    line = re.sub(r"[^\w.()-]+", " ", line).replace("_", " ")
+    words = [w.strip(".-") for w in line.split()]
+    return " ".join(w for w in words if w and (len(w) > 1 or w.isalnum()))
+
+
+def doc_title(text, max_words=7, max_len=60):
+    """Guess a short title from a document's OCR text: its heading, or the
+    sender plus document type ("Acme Power Invoice"). "" if nothing fits."""
+    first_page = (text or "").split("\f")[0]
+    lines = []
+    for raw in first_page.splitlines():
+        line = _clean_line(raw)
+        letters = sum(c.isalpha() for c in line)
+        if letters < 3 or letters < 0.6 * len(line.replace(" ", "")) or _NOISE.search(raw.strip()):
+            continue
+        lines.append(line)
+        if len(lines) >= 25:
+            break
+    if not lines:
+        return ""
+
+    def score(i, line):
+        words = line.split()
+        sc = -i  # headings come first
+        if any(w.lower().strip("()") in DOC_WORDS for w in words):
+            sc += 12
+        if line.isupper() or all(w[0].isupper() for w in words if w[0].isalpha()):
+            sc += 4
+        if len(words) > max_words:
+            sc -= 3 * (len(words) - max_words)
+        return sc
+
+    best = max(range(len(lines)), key=lambda i: score(i, lines[i]))
+    title = lines[best]
+    # A bare "INVOICE" says little on its own; put the sender (the line at the top) in front.
+    if best > 0 and len(title.split()) <= 2 and title.split()[0].lower() in DOC_WORDS:
+        title = f"{lines[0]} {title}"
+    # Shouted words read better as "Invoice"; short ones are likely acronyms (IRS, LLC).
+    words = [w.capitalize() if w.isupper() and w.isalpha() and len(w) > 3 else w for w in title.split()[:max_words]]
+    title = " ".join(words)
+    if len(title) > max_len:
+        title = title[:max_len].rsplit(" ", 1)[0]
+    return title
+
+
+def page_text(image_path, lang):
+    """OCR one page image with tesseract; "" if it isn't available or fails."""
+    if not shutil.which("tesseract"):
+        log.warning("Naming from text needs tesseract, which is not installed in this image")
+        return ""
+    try:
+        p = subprocess.run(["tesseract", str(image_path), "stdout", "-l", lang or "eng"],
+                           capture_output=True, text=True, timeout=300)
+    except subprocess.TimeoutExpired:
+        log.warning("Reading the first page timed out")
+        return ""
+    if p.returncode != 0:
+        tail = p.stderr.strip().splitlines()
+        log.warning("Reading the first page failed: %s", tail[-1] if tail else p.returncode)
+        return ""
+    return p.stdout
 
 
 def unique_path(folder, stem, ext):
@@ -145,20 +222,32 @@ def make_pdf(pages, d, dpi):
         raw_pdf = tmp / "out.pdf"
         raw_pdf.write_bytes(img2pdf.convert(parts))
         final_pdf = raw_pdf
+        text = ""
         if d["ocr"]:
-            final_pdf = run_ocr(raw_pdf, tmp / "ocr.pdf", d["ocr_lang"]) or raw_pdf
-        dest = unique_path(output_dir(), render_name(d["filename"], 1, "document"), ".pdf")
+            sidecar = tmp / "ocr.txt"
+            final_pdf = run_ocr(raw_pdf, tmp / "ocr.pdf", d["ocr_lang"], sidecar) or raw_pdf
+            if sidecar.exists():
+                text = sidecar.read_text(errors="replace")
+        title = ""
+        if "{title}" in d["filename"]:
+            # Without OCR, read just the first page; that's where the heading is.
+            title = doc_title(text or page_text(parts[0], d["ocr_lang"]))
+            log.info("Named from content: %s", title or "(no title found)")
+        dest = unique_path(output_dir(), render_name(d["filename"], 1, "document", title=title), ".pdf")
         shutil.move(str(final_pdf), dest)
         return [{"path": dest, "kind": "pdf", "pages": len(parts)}]
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def run_ocr(src, dst, lang):
+def run_ocr(src, dst, lang, sidecar=None):
     if not shutil.which("ocrmypdf"):
         log.warning("OCR enabled but ocrmypdf is not installed in this image")
         return None
-    cmd = ["ocrmypdf", "--output-type", "pdf", "--rotate-pages", "-l", lang or "eng", str(src), str(dst)]
+    cmd = ["ocrmypdf", "--output-type", "pdf", "--rotate-pages", "-l", lang or "eng"]
+    if sidecar:
+        cmd += ["--sidecar", str(sidecar)]  # the recognised text, pages split by \f
+    cmd += [str(src), str(dst)]
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
         if p.returncode == 0:

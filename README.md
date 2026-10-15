@@ -71,6 +71,14 @@ ScanHub can only see files it created. Scans go to `My Drive/Scans/PDF` and
 You can also tap **Scan now**. If the internet or Drive is down, scans are
 kept locally and upload later.
 
+**Name documents by what's on them.** Under **Settings → Documents**, set the
+file name to something like `{title}_{date}`. ScanHub reads the first page on
+this machine (nothing is sent anywhere) and uses its heading or sender, for
+example `Acme Power and Light Invoice_2026-10-15.pdf`. If it can't find any
+text, `{title}` becomes `Scan`. For other languages, build with
+`docker compose build --build-arg OCR_LANGS="eng spa"` and set
+**OCR language** to `eng+spa`.
+
 ## If something goes wrong
 
 - **"No scanner found":** make sure the scanner is on and awake (press its

@@ -37,6 +37,7 @@ def test_update_clamps_ranges():
     {"document": {"filename": "{oops}"}},
     {"document": {"filename": "{date"}},
     {"photo": {"filename": "   "}},
+    {"photo": {"filename": "{title}"}},  # photos have no text to read
     {"scanner": {"extra_args": "--batch=/tmp/x"}},
     {"scanner": {"extra_args": "-o /etc/passwd"}},
     {"scanner": {"extra_args": "-d other"}},
@@ -49,6 +50,10 @@ def test_update_rejects_bad_values(patch):
     with pytest.raises(ValueError):
         settings.update(patch)
     assert settings.get() == before  # nothing half-applied
+
+
+def test_document_filename_accepts_title():
+    assert settings.update({"document": {"filename": "{title}_{date}"}})["document"]["filename"] == "{title}_{date}"
 
 
 @pytest.mark.parametrize("ip", ["", "192.168.1.50", "scanner.lan", "fe80::1"])
