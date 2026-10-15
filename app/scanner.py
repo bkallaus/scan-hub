@@ -166,7 +166,9 @@ def build_args(opts, s, mode):
         if v:
             args += ["--source", v]
     if dup_switch:
-        args += ["--duplex", "yes" if sect["duplex"] else "no"]
+        # Yes/no options take their value as --name=value; scanimage rejects
+        # "--duplex yes" ("argument without option").
+        args += ["--duplex=yes" if sect["duplex"] else "--duplex=no"]
     for name in SIZE_OPTS:
         o = opts.get(name)
         if o and not o.inactive and o.choices():

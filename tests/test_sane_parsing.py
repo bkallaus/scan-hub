@@ -109,13 +109,19 @@ REAL_FF680W = (Path(__file__).parent / "ff680w_options.txt").read_text()
 
 
 def _arg(args, name):
-    return args[args.index(name) + 1] if name in args else None
+    for i, a in enumerate(args):
+        if a.startswith(name + "="):
+            return a.split("=", 1)[1]
+        if a == name:
+            return args[i + 1]
+    return None
 
 
 def test_real_ff680w_document_duplex():
     o = parse_options(REAL_FF680W)
     args = build_args(o, _s(document={"duplex": True, "color": "gray", "resolution": 300}), "document")
     assert _arg(args, "--duplex") == "yes"
+    assert "--duplex=yes" in args  # one token: scanimage rejects "--duplex yes"
     assert _arg(args, "--source") == "ADF"
     assert _arg(args, "--mode") == "Grayscale"
     assert _arg(args, "--resolution") == "300"
