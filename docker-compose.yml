@@ -12,7 +12,8 @@ services:
     restart: unless-stopped
     environment:
       TZ: America/Chicago
-      SCANNER_IP: 192.168.1.50        # your FF-680W's IP (reserve it in the router)
+      # SCANNER_IP: 192.168.1.50      # optional: found automatically if not set
+                                      # (reserving it in the router still helps)
       WEB_PORT: "8680"
       # WEB_PASSWORD: change-me       # optional: protects the web UI (any username)
       # GOOGLE_CLIENT_ID: ...         # optional: can be entered in the web UI instead

@@ -21,7 +21,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import processing
+from . import netfind, processing
 from .config import SIMULATE, WORK_DIR, settings
 from .store import store
 
@@ -212,6 +212,10 @@ class SaneBackend:
         except OSError as e:
             log.warning("Could not write Epson network config: %s", e)
 
+    @staticmethod
+    def find_ips():
+        return netfind.find_scanner_ips()
+
     def list_devices(self):
         if not shutil.which("scanimage"):
             raise RuntimeError("scanimage not installed")
@@ -277,6 +281,10 @@ class SimBackend:
     @staticmethod
     def network_device(ip):
         return None
+
+    @staticmethod
+    def find_ips():
+        return []
 
     def list_devices(self):
         return [{"name": "simulated:FF-680W", "desc": "Epson FF-680W (simulated)"}]
@@ -508,8 +516,10 @@ class ScanService(threading.Thread):
                    or next((n for n in names if "epsonscan2" in n), None)
                    or next((d["name"] for d in devs if re.search(r"FF-?680", d["desc"], re.I)), None)
                    or (names[0] if names else None))
+            if not dev:
+                dev, opts = self._search_network(skip=s["ip"])
         if not dev:
-            raise RuntimeError("No scanner found. Check the scanner IP and that it is on and awake.")
+            raise RuntimeError("No scanner found. Check that it is switched on, awake and on the same network.")
         if opts is None:
             opts = self.backend.options(dev)
         if not self.devices:
@@ -528,6 +538,26 @@ class ScanService(threading.Thread):
                  dev, self.detection, f", sensors: {[o.name for o in self.sensors]}" if self.sensors else "")
         self._errors = 0
         self._last_error = None
+
+    def _search_network(self, skip):
+        """Look for the scanner ourselves and remember its IP when found."""
+        self._set("starting", "Searching your network for the scanner…")
+        for ip in self.backend.find_ips():
+            if ip == skip:
+                continue  # just failed as the saved IP
+            name = self.backend.network_device(ip)
+            try:
+                opts = self.backend.options(name)
+            except Exception as e:
+                log.debug("%s isn't a scanner we can open: %s", ip, e)
+                continue
+            if opts:
+                log.info("Found the scanner at %s; saved it as the scanner IP", ip)
+                settings.update({"scanner": {"ip": ip}})
+                self.backend.configure_network(ip)
+                self._configured_ip = ip
+                return name, opts
+        return None, None
 
     def _sensor_triggered(self, quiet=False):
         opts = self.backend.options(self.device)

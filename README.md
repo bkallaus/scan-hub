@@ -18,15 +18,15 @@ change settings from your phone.
 
 - An x86_64 Linux host running Docker (NAS, mini PC, Unraid, etc.) on the same
   network as the scanner.
-- The FF-680W joined to your Wi-Fi (2.4 GHz only) with a **fixed IP**. Reserve
-  its address in your router's DHCP settings. The scanner's IP is shown by
-  Epson's setup tools or in your router's client list.
+- The FF-680W joined to your Wi-Fi (2.4 GHz only). ScanHub finds it on the
+  network by itself; reserving its address in your router's DHCP settings
+  makes start-up faster, and you can then set it as `SCANNER_IP`.
 - A free Google Cloud OAuth client (5 minutes, steps below).
 
 ## 1. Build and start
 
 ```bash
-# edit SCANNER_IP (and TZ) in docker-compose.yml first
+# edit TZ (and optionally SCANNER_IP) in docker-compose.yml first
 docker compose up -d --build
 docker compose logs -f
 ```
@@ -142,9 +142,13 @@ docker exec -it ff680w-scanhub cat /root/.epsonscan2/Network/epsonscan2.conf
 - **"No scanner found":** check the IP, that the Wi-Fi light is solid, and that
   the scanner isn't asleep/off (press its power button). Make sure no other
   computer is mid-scan. Try *Reconnect scanner*.
-- ScanHub first opens the scanner directly at `SCANNER_IP`, then falls back
-  to a network search. If neither works but the direct command above does,
-  paste that device name into *SANE device*.
+- ScanHub first opens the scanner directly at `SCANNER_IP`, then asks Epson's
+  driver to search, then searches the local subnet itself (Epson's discovery
+  broadcast plus a check for the scan port, 1865). An IP it finds is saved,
+  and found again if the scanner's address changes. If none of that works but
+  the direct command above does, paste that device name into *SANE device*.
+  The subnet search needs host networking, so it doesn't work from Docker
+  Desktop on a Mac.
 - **Wrong device picked:** copy the right name from *Show driver options* into
   *SANE device*.
 - **The scanner is also used by Epson FastFoto on a PC:** that works, but only one

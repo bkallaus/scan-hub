@@ -135,3 +135,89 @@ def test_processor_failure_keeps_raw_pages(monkeypatch, tmp_path):
     monkeypatch.setattr(scanner_mod.processing, "process", lambda *a: (_ for _ in ()).throw(RuntimeError("boom")))
     Processor._process_job({"pages": [], "dirs": [d], "mode": "document", "dpi": 300})
     assert (WORK_DIR / "failed_job_will_fail").is_dir()
+
+
+# ---------------------------------------------------------------- network search
+class NetBackend(SimBackend):
+    """Real-driver-shaped backend: only network devices at `live` IPs open."""
+    name = "sane"
+
+    def __init__(self, live, candidates, listed=()):
+        super().__init__()
+        self.live, self.candidates, self.listed = set(live), list(candidates), list(listed)
+        self.opened = []
+
+    @staticmethod
+    def network_device(ip):
+        return f"epsonscan2:networkscanner:esci2:network:{ip}" if ip else None
+
+    def list_devices(self):
+        return list(self.listed)
+
+    def find_ips(self):
+        return list(self.candidates)
+
+    def options(self, dev):
+        self.opened.append(dev)
+        ip = dev.rsplit(":", 1)[-1]
+        if ip not in self.live:
+            raise RuntimeError(f"scanimage: open of device {dev} failed: Error during device I/O")
+        return super().options(dev)
+
+
+def _svc(backend, monkeypatch):
+    monkeypatch.setattr(scanner_mod, "processor", FakeProcessor())
+    s = ScanService()
+    s.backend = backend
+    return s
+
+
+def test_search_finds_and_saves_scanner_ip(monkeypatch):
+    b = NetBackend(live={"192.168.86.77"}, candidates=["192.168.86.12", "192.168.86.77"])
+    s = _svc(b, monkeypatch)
+    s.discover()
+    assert s.device == "epsonscan2:networkscanner:esci2:network:192.168.86.77"
+    assert settings.get()["scanner"]["ip"] == "192.168.86.77"  # remembered for next start
+
+
+def test_wrong_saved_ip_is_replaced(monkeypatch):
+    settings.update({"scanner": {"ip": "192.168.1.50"}})
+    b = NetBackend(live={"192.168.86.77"}, candidates=["192.168.1.50", "192.168.86.77"])
+    s = _svc(b, monkeypatch)
+    s.discover()
+    assert settings.get()["scanner"]["ip"] == "192.168.86.77"
+    # the saved IP is tried once directly, not again during the search
+    assert b.opened.count("epsonscan2:networkscanner:esci2:network:192.168.1.50") == 1
+
+
+def test_working_saved_ip_skips_search(monkeypatch):
+    settings.update({"scanner": {"ip": "192.168.86.77"}})
+    b = NetBackend(live={"192.168.86.77"}, candidates=[])
+    b.find_ips = lambda: pytest.fail("network search shouldn't run when the saved IP works")
+    _svc(b, monkeypatch).discover()
+
+
+def test_driver_listed_device_preferred_over_search(monkeypatch):
+    listed = [{"name": "epsonscan2:FF-680W:001:network:192.168.86.77", "desc": "EPSON FF-680W"}]
+    b = NetBackend(live={"192.168.86.77"}, candidates=[], listed=listed)
+    b.options = lambda dev: SimBackend.options(b, dev)
+    b.find_ips = lambda: pytest.fail("no search needed when the driver lists the scanner")
+    s = _svc(b, monkeypatch)
+    s.discover()
+    assert s.device == listed[0]["name"]
+
+
+def test_search_finds_nothing(monkeypatch):
+    b = NetBackend(live=set(), candidates=["192.168.86.12"])
+    s = _svc(b, monkeypatch)
+    with pytest.raises(RuntimeError, match="No scanner found"):
+        s.discover()
+    assert settings.get()["scanner"]["ip"] == ""
+
+
+def test_explicit_device_never_searches(monkeypatch):
+    settings.update({"scanner": {"device": "epsonscan2:networkscanner:esci2:network:192.168.86.5"}})
+    b = NetBackend(live=set(), candidates=["192.168.86.77"])
+    b.find_ips = lambda: pytest.fail("a hand-picked SANE device must not be overridden")
+    with pytest.raises(RuntimeError):
+        _svc(b, monkeypatch).discover()
