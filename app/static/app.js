@@ -76,6 +76,7 @@ const BTN_ICONS = {
   pause: '<rect x="6.5" y="5" width="3.5" height="14" rx="1"/><rect x="14" y="5" width="3.5" height="14" rx="1"/>',
   play: '<path d="M7 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L8.5 4.64A1 1 0 0 0 7 5.5z"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  reconnect: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4v4h-4"/>',
 };
 function setBtn(el, icon, label) {
   el.innerHTML = `<svg class="bico" viewBox="0 0 24 24" aria-hidden="true">${BTN_ICONS[icon]}</svg><span>${esc(label)}</span>`;
@@ -116,7 +117,8 @@ $("#scanNow").onclick = () => act("/api/scan", "Scanning…");
 $("#pause").onclick = () => save({ scanner: { paused: !settings.scanner.paused } },
   settings.scanner.paused ? "Auto-scan on" : "Auto-scan paused");
 $("#finish").onclick = () => act("/api/document/finish", "Finishing PDF…");
-$("#rediscover").onclick = () => act("/api/scanner/rediscover", "Reconnecting…");
+$("#rediscover").onclick = $("#reconnectTop").onclick = () => act("/api/scanner/rediscover", "Reconnecting…");
+setBtn($("#reconnectTop"), "reconnect", "Reconnect scanner");
 $("#retryErrors").onclick = () => act("/api/items/retry-errors", "Retrying").then(loadItems);
 $("#showOpts").onclick = async () => {
   let d;
@@ -152,6 +154,10 @@ function renderStatus(st) {
     setBtn($("#pause"), st.paused ? "play" : "pause", st.paused ? "Resume auto-scan" : "Pause auto-scan");
   }
   $("#scanNow").disabled = ["scanning", "starting", "offline"].includes(sc.state);
+  // Connection trouble: put Reconnect first and let it take over the primary slot.
+  const trouble = ["offline", "error"].includes(sc.state);
+  $("#reconnectTop").hidden = !trouble;
+  $("#scanNow").className = trouble ? "ghost" : "primary";
   $("#proc").textContent = sc.processing ? `Converting ${sc.processing} batch${sc.processing > 1 ? "es" : ""} in the background…` : "";
   const pd = sc.pending_document;
   $("#finish").hidden = !pd;

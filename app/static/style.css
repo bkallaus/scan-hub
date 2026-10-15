@@ -69,7 +69,8 @@ button { font: inherit; cursor: pointer; }
 .ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .bico { width: 19px; height: 19px; flex: none; fill: none; stroke: currentColor; stroke-width: 2;
   stroke-linecap: round; stroke-linejoin: round; }
-@media (max-width: 480px) { .actions > button { flex: 1 1 auto; } }
+@media (max-width: 480px) { .actions > button { flex: 1 1 0; white-space: nowrap; padding: 0 14px; } }
+#reconnectTop { flex-basis: 100%; }
 .link { background: none; border: none; color: var(--accent); padding: 0; text-decoration: underline; }
 button:disabled { opacity: .5; cursor: default; }
 
