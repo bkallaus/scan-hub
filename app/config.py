@@ -151,9 +151,11 @@ def _validate(s):
             fields = [f for _, f, _, _ in string.Formatter().parse(tpl) if f is not None]
         except ValueError:
             raise ValueError(f"{sect} file name has an unmatched {{ or }}")
-        bad = [f for f in fields if f not in ("date", "time", "n", "mode")]
+        allowed = ("date", "time", "n", "mode", "title") if sect == "document" else ("date", "time", "n", "mode")
+        bad = [f for f in fields if f not in allowed]
         if bad:
-            raise ValueError(f"{sect} file name: unknown field {{{bad[0]}}}; use {{date}} {{time}} {{n}} {{mode}}")
+            use = " ".join("{" + f + "}" for f in allowed)
+            raise ValueError(f"{sect} file name: unknown field {{{bad[0]}}}; use {use}")
         if not tpl:
             raise ValueError(f"{sect} file name can't be empty")
         s[sect]["filename"] = tpl

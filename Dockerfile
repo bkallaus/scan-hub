@@ -10,6 +10,8 @@ FROM ${BASE_IMAGE}
 ARG EPSON_BUNDLE_URL=https://download-center.epson.com/f/module/ee3a3a45-95aa-4c80-b14d-ad4cff5f7428/epsonscan2-bundle-6.7.90.0.x86_64.deb.tar.gz
 # Set to false for a smaller image without searchable-PDF (OCR) support.
 ARG INSTALL_OCR=true
+# Tesseract languages for OCR and naming files from their text, e.g. "eng spa deu".
+ARG OCR_LANGS=eng
 # Set to false to build without Epson's driver (only useful with SIMULATE_SCANNER=1).
 ARG INSTALL_EPSON_DRIVER=true
 
@@ -25,7 +27,8 @@ RUN apt-get update \
       sane-utils python3 python3-venv curl ca-certificates tzdata \
       psmisc \
  && if [ "$INSTALL_OCR" = "true" ]; then \
-      apt-get install -y --no-install-recommends ocrmypdf tesseract-ocr tesseract-ocr-eng ; fi \
+      apt-get install -y --no-install-recommends ocrmypdf tesseract-ocr \
+        $(for l in $OCR_LANGS; do echo "tesseract-ocr-$l"; done) ; fi \
  && rm -rf /var/lib/apt/lists/*
 
 COPY vendor/ /tmp/vendor/
