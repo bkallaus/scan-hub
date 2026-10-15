@@ -13,7 +13,6 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 CONFIG_DIR = DATA_DIR / "config"
 STATE_DIR = DATA_DIR / "state"
 SCANS_DIR = DATA_DIR / "scans"
-WATCH_DIR = DATA_DIR / "watch"
 WORK_DIR = DATA_DIR / "work"
 SETTINGS_FILE = CONFIG_DIR / "settings.json"
 ENV_SEEN_FILE = CONFIG_DIR / "env_applied.json"
@@ -60,15 +59,7 @@ DEFAULTS = {
         "upload_scans": True,
         "pdf_folder": "Scans/PDF",
         "photo_folder": "Scans/Photos",
-        "upload_watch": True,
-        "watch_folder": "Scans/Dropped",
         "keep_local_scans": True,
-    },
-    "watch": {
-        "enabled": True,
-        "after_upload": "move",  # move | delete | keep
-        "stable_seconds": 5,
-        "interval_seconds": 5,
     },
 }
 
@@ -128,7 +119,6 @@ CHOICES = {
     ("scanner", "detection"): {"auto", "sensor", "probe", "manual"},
     ("document", "color"): {"color", "gray", "bw"},
     ("photo", "format"): {"jpg", "png", "tiff"},
-    ("watch", "after_upload"): {"move", "delete", "keep"},
 }
 
 
@@ -145,8 +135,6 @@ def _validate(s):
         s[sect]["jpeg_quality"] = max(30, min(100, s[sect]["jpeg_quality"]))
     s["document"]["combine_seconds"] = max(0, min(600, s["document"]["combine_seconds"]))
     s["document"]["blank_sensitivity"] = max(0.0, min(20.0, s["document"]["blank_sensitivity"]))
-    s["watch"]["stable_seconds"] = max(1, min(600, s["watch"]["stable_seconds"]))
-    s["watch"]["interval_seconds"] = max(2, min(600, s["watch"]["interval_seconds"]))
     ip = s["scanner"]["ip"].strip()
     if ip and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.:\-]*", ip):
         raise ValueError("Scanner IP must be an IP address or host name, e.g. 192.168.1.50")
@@ -155,7 +143,7 @@ def _validate(s):
     if not re.fullmatch(r"[A-Za-z_]+(\+[A-Za-z_]+)*", lang):
         raise ValueError("OCR language must be Tesseract codes like eng or eng+spa")
     s["document"]["ocr_lang"] = lang
-    for sect, key in (("drive", "pdf_folder"), ("drive", "photo_folder"), ("drive", "watch_folder")):
+    for sect, key in (("drive", "pdf_folder"), ("drive", "photo_folder")):
         s[sect][key] = "/".join(p.strip() for p in s[sect][key].split("/") if p.strip()) or "Scans"
     for sect in ("document", "photo"):
         tpl = s[sect]["filename"].strip()
@@ -184,7 +172,7 @@ class Settings:
     def __init__(self):
         self._lock = threading.RLock()
         self._data = copy.deepcopy(DEFAULTS)
-        for d in (CONFIG_DIR, STATE_DIR, SCANS_DIR, WATCH_DIR, WORK_DIR):
+        for d in (CONFIG_DIR, STATE_DIR, SCANS_DIR, WORK_DIR):
             d.mkdir(parents=True, exist_ok=True)
         if SETTINGS_FILE.exists():
             try:

@@ -3,7 +3,7 @@ import time
 import pytest
 
 from app import drive as drive_mod
-from app.config import WATCH_DIR, settings
+from app.config import settings
 from app.drive import AuthError, Drive, Uploader
 from app.store import store
 
@@ -129,17 +129,24 @@ def test_401_drops_access_token(d):
     assert "access_token" not in d.token and d.connected
 
 
-def test_uploader_success_and_watch_move(d, monkeypatch):
-    sub = WATCH_DIR / "a"
-    sub.mkdir(parents=True, exist_ok=True)
-    f = sub / "doc.pdf"
+def test_uploader_success_keeps_local_copy(d, monkeypatch, tmp_path):
+    f = tmp_path / "doc.pdf"
     f.write_bytes(b"x")
-    iid = store.add(f, f.name, "pdf", "watch", "Scans/Dropped/a", "pending")
+    iid = store.add(f, f.name, "pdf", "scan", "Scans/PDF", "pending")
     monkeypatch.setattr(d, "upload", lambda p, folder: ("ID", "LINK"))
     Uploader()._do(store.claim_next())
     item = store.get(iid)
     assert item["status"] == "done" and item["drive_link"] == "LINK"
-    assert item["path"] == str(WATCH_DIR / "_uploaded" / "a" / "doc.pdf")
+    assert f.exists()
+
+
+def test_uploader_removes_scan_when_not_keeping_local(d, monkeypatch, tmp_path):
+    settings.update({"drive": {"keep_local_scans": False}})
+    f = tmp_path / "doc.pdf"
+    f.write_bytes(b"x")
+    store.add(f, f.name, "pdf", "scan", "Scans/PDF", "pending")
+    monkeypatch.setattr(d, "upload", lambda p, folder: ("ID", "LINK"))
+    Uploader()._do(store.claim_next())
     assert not f.exists()
 
 

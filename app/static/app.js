@@ -236,7 +236,7 @@ async function loadItems() {
     const err = i.error && i.status !== "done" ? `<div class="detail" title="${esc(i.error)}">${esc(i.error)}</div>` : "";
     return `<li><div class="ico">${ico}</div><div class="meta">
       <a class="name" href="/files/${i.id}" target="_blank">${esc(i.name)}</a>
-      <div class="detail">${st}${extra} · ${i.pages ? i.pages + " p · " : ""}${i.size ? size(i.size) + " · " : ""}${i.source === "watch" ? "watch folder · " : ""}${ago(i.created)}</div>
+      <div class="detail">${st}${extra} · ${i.pages ? i.pages + " p · " : ""}${i.size ? size(i.size) + " · " : ""}${ago(i.created)}</div>
       ${err}</div></li>`;
   }).join("");
   $$("[data-retry]", ul).forEach((b) => (b.onclick = () => act(`/api/items/${b.dataset.retry}/retry`, "Queued").then(loadItems)));

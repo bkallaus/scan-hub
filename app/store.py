@@ -1,4 +1,4 @@
-"""SQLite-backed record of produced/watched files and their upload state."""
+"""SQLite-backed record of scanned files and their upload state."""
 import logging
 import sqlite3
 import threading
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS items (
     path TEXT NOT NULL,
     name TEXT NOT NULL,
     kind TEXT NOT NULL,          -- pdf | photo | file
-    source TEXT NOT NULL,        -- scan | watch
+    source TEXT NOT NULL,        -- scan (older databases may also hold "watch")
     folder TEXT NOT NULL,        -- Drive folder path
     status TEXT NOT NULL,        -- pending | uploading | done | error | local
     attempts INTEGER DEFAULT 0,

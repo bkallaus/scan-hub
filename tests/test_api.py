@@ -63,21 +63,21 @@ def test_file_download_restricted_to_data_dir(client, tmp_path):
     ok = store.add(inside, "x.pdf", "pdf", "scan", "f", "done")
     outside = tmp_path / "secret.txt"
     outside.write_text("nope")
-    bad = store.add(outside, "secret.txt", "file", "watch", "f", "done")
+    bad = store.add(outside, "secret.txt", "file", "scan", "f", "done")
     assert client.get(f"/files/{ok}").content == b"%PDF"
     assert client.get(f"/files/{bad}").status_code == 404
 
 
 def test_only_scans_open_inline(client):
-    folder = DATA_DIR / "watch"
+    folder = DATA_DIR / "scans"
     folder.mkdir(parents=True, exist_ok=True)
     pdf, page = folder / "a.pdf", folder / "evil.html"
     pdf.write_bytes(b"%PDF")
     page.write_text("<script>alert(1)</script>")
-    r = client.get(f"/files/{store.add(pdf, 'a.pdf', 'pdf', 'watch', 'f', 'done')}")
+    r = client.get(f"/files/{store.add(pdf, 'a.pdf', 'pdf', 'scan', 'f', 'done')}")
     assert r.headers["content-disposition"].startswith("inline")
     assert r.headers["x-content-type-options"] == "nosniff"
-    r = client.get(f"/files/{store.add(page, 'evil.html', 'file', 'watch', 'f', 'done')}")
+    r = client.get(f"/files/{store.add(page, 'evil.html', 'file', 'scan', 'f', 'done')}")
     assert r.headers["content-disposition"].startswith("attachment")
 
 

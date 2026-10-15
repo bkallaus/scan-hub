@@ -30,7 +30,7 @@ def fresh_state():
     with store._lock:
         store.db.execute("DELETE FROM items")
         store.db.commit()
-    for d in (config.WORK_DIR, config.WATCH_DIR):
+    for d in (config.WORK_DIR,):
         shutil.rmtree(d, ignore_errors=True)
         d.mkdir(parents=True)
     yield

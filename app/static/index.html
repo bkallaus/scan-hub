@@ -138,19 +138,6 @@
       <label class="check"><input type="checkbox" data-key="drive.keep_local_scans"> Keep a local copy after upload</label>
     </details>
 
-    <details>
-      <summary>Watch folder</summary>
-      <p class="muted small">Files placed in the container's <code>/data/watch</code> folder (map it to a NAS share) are uploaded. Sub-folders are mirrored in Drive.</p>
-      <label class="check"><input type="checkbox" data-key="watch.enabled"> Watch the folder</label>
-      <label class="check"><input type="checkbox" data-key="drive.upload_watch"> Upload new files</label>
-      <label>Drive folder
-        <input data-key="drive.watch_folder"></label>
-      <label>After upload
-        <select data-key="watch.after_upload">
-          <option value="move">Move to _uploaded</option><option value="delete">Delete</option><option value="keep">Leave in place</option>
-        </select></label>
-    </details>
-
     <details id="logsBox">
       <summary>Log</summary>
       <pre id="logs" class="pre"></pre>

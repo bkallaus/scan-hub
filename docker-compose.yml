@@ -21,4 +21,3 @@ services:
       # SIMULATE_SCANNER: "1"         # test everything without the scanner
     volumes:
       - ./data:/data                  # settings, Google token, local copies of scans
-      # - /mnt/nas/scan-inbox:/data/watch   # optional: point the watch folder at a share

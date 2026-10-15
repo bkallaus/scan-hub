@@ -9,14 +9,13 @@ import json
 import logging
 import mimetypes
 import os
-import shutil
 import threading
 import time
 from pathlib import Path
 
 import requests
 
-from .config import STATE_DIR, WATCH_DIR, settings
+from .config import STATE_DIR, settings
 from .store import store
 
 log = logging.getLogger("drive")
@@ -349,23 +348,9 @@ class Uploader(threading.Thread):
 
     @staticmethod
     def _after(item, path):
-        s = settings.get()
         try:
-            if item["source"] == "watch":
-                action = s["watch"]["after_upload"]
-                if action == "delete":
-                    path.unlink()
-                elif action == "move":
-                    rel = path.relative_to(WATCH_DIR)
-                    dest = WATCH_DIR / "_uploaded" / rel
-                    dest.parent.mkdir(parents=True, exist_ok=True)
-                    i = 2
-                    while dest.exists():
-                        dest = dest.with_name(f"{path.stem}-{i}{path.suffix}")
-                        i += 1
-                    shutil.move(str(path), dest)
-                    store.update(item["id"], path=str(dest))
-            elif not s["drive"]["keep_local_scans"]:
+            # Only delete our own scans (older databases may hold other sources).
+            if item["source"] == "scan" and not settings.get()["drive"]["keep_local_scans"]:
                 path.unlink()
         except Exception as e:
             log.warning("Post-upload cleanup for %s failed: %s", path.name, e)

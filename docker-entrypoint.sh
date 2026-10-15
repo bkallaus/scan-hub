@@ -8,5 +8,5 @@ if [ -n "$SANE_EXTRA_BACKENDS" ]; then
   done
 fi
 
-mkdir -p "$DATA_DIR/watch" "$DATA_DIR/scans"
+mkdir -p "$DATA_DIR/scans"
 exec "$@"
