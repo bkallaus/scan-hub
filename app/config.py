@@ -50,7 +50,7 @@ DEFAULTS = {
         "resolution": 600,
         "format": "jpg",         # jpg | png | tiff
         "jpeg_quality": 92,
-        "duplex": False,         # scan backs too (kept only if not blank)
+        "duplex": True,          # scan backs too (kept only if written on)
         "autocrop": True,
         "filename": "Photo_{date}_{time}_{n}",
     },
@@ -251,6 +251,68 @@ class Settings:
             self._data = new
             self._save()
             return copy.deepcopy(new)
+
+
+# One-tap scan presets shown on the web page. Each sets every option that
+# shapes the result, so applying one always gives the same output.
+PRESETS = [
+    {"id": "doc_quick", "icon": "bolt", "title": "Quick document",
+     "desc": "Receipts, notes and mail. Smallest files.",
+     "settings": {"mode": "document", "document": {
+         "resolution": 200, "color": "gray", "jpeg_quality": 70, "ocr": False,
+         "duplex": True, "skip_blank": True}}},
+    {"id": "doc_standard", "icon": "doc", "title": "Everyday document", "recommended": True,
+     "desc": "Letters, bills and forms. Good quality, small files.",
+     "settings": {"mode": "document", "document": {
+         "resolution": 300, "color": "color", "jpeg_quality": 80, "ocr": False,
+         "duplex": True, "skip_blank": True}}},
+    {"id": "doc_high", "icon": "sparkle", "title": "High-quality document",
+     "desc": "Contracts, certificates, artwork. Text you can search and copy.",
+     "settings": {"mode": "document", "document": {
+         "resolution": 600, "color": "color", "jpeg_quality": 92, "ocr": True,
+         "duplex": True, "skip_blank": True}}},
+    {"id": "photo_quick", "icon": "stack", "title": "Quick photos",
+     "desc": "Get through big boxes of prints fast.",
+     "settings": {"mode": "photo", "photo": {
+         "resolution": 300, "format": "jpg", "jpeg_quality": 85, "autocrop": True, "duplex": False}}},
+    {"id": "photo_standard", "icon": "image", "title": "Photos", "recommended": True,
+     "desc": "Albums and sharing. Keeps backs that have writing on them.",
+     "settings": {"mode": "photo", "photo": {
+         "resolution": 600, "format": "jpg", "jpeg_quality": 92, "autocrop": True, "duplex": True}}},
+    {"id": "photo_archive", "icon": "archive", "title": "Archival photos",
+     "desc": "Lossless masters for restoring and enlarging. Very large files.",
+     "settings": {"mode": "photo", "photo": {
+         "resolution": 1200, "format": "tiff", "jpeg_quality": 92, "autocrop": True, "duplex": True}}},
+]
+
+
+def preset_spec(p):
+    """Short summary line, e.g. '300 dpi · Color · PDF · 2-sided'."""
+    mode = p["settings"]["mode"]
+    o = p["settings"][mode]
+    if mode == "document":
+        parts = [f"{o['resolution']} dpi", {"color": "Color", "gray": "Gray", "bw": "B&W"}[o["color"]],
+                 "searchable PDF" if o["ocr"] else "PDF"]
+        if o["duplex"]:
+            parts.append("2-sided")
+    else:
+        parts = [f"{o['resolution']} dpi", {"jpg": "JPEG", "png": "PNG", "tiff": "TIFF"}[o["format"]]]
+        if o["duplex"]:
+            parts.append("+ backs")
+    return " · ".join(parts)
+
+
+def active_preset(s):
+    """id of the preset the current settings match exactly, else None."""
+    for p in PRESETS:
+        mode = p["settings"]["mode"]
+        if s["mode"] == mode and all(s[mode][k] == v for k, v in p["settings"][mode].items()):
+            return p["id"]
+    return None
+
+
+def preset(pid):
+    return next((p for p in PRESETS if p["id"] == pid), None)
 
 
 settings = Settings()

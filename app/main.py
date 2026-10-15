@@ -16,7 +16,8 @@ from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from .config import DATA_DIR, SIMULATE, WEB_PASSWORD, WEB_PORT, settings
+from .config import (DATA_DIR, PRESETS, SIMULATE, WEB_PASSWORD, WEB_PORT, active_preset, preset,
+                     preset_spec, settings)
 from .store import LOG_BUFFER, setup_logging, store
 
 setup_logging()
@@ -82,6 +83,7 @@ def status(_):
     return JSONResponse({
         "time": time.time(),
         "mode": s["mode"],
+        "preset": active_preset(s),
         "paused": s["scanner"]["paused"],
         "simulate": SIMULATE,
         "scanner": scanner.status(),
@@ -115,6 +117,19 @@ def _apply_settings(patch):
     if before["drive"]["client_id"] != new["drive"]["client_id"] and drive.connected:
         drive.disconnect()
     return JSONResponse(settings.public())
+
+
+def presets(_):
+    return JSONResponse([{"id": p["id"], "icon": p["icon"], "title": p["title"], "desc": p["desc"],
+                          "mode": p["settings"]["mode"], "spec": preset_spec(p),
+                          "recommended": p.get("recommended", False)} for p in PRESETS])
+
+
+async def apply_preset(request: Request):
+    p = preset(request.path_params["id"])
+    if not p:
+        return err("unknown preset", 404)
+    return await run_in_threadpool(_apply_settings, p["settings"])
 
 
 def scan_now(_):
@@ -220,6 +235,8 @@ routes = [
     Route("/api/status", status),
     Route("/api/settings", get_settings, methods=["GET"]),
     Route("/api/settings", put_settings, methods=["PUT"]),
+    Route("/api/presets", presets),
+    Route("/api/presets/{id}/apply", apply_preset, methods=["POST"]),
     Route("/api/scan", scan_now, methods=["POST"]),
     Route("/api/document/finish", finish_doc, methods=["POST"]),
     Route("/api/scanner/rediscover", rediscover, methods=["POST"]),

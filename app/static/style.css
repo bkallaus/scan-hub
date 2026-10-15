@@ -32,13 +32,29 @@ main { max-width: 720px; margin: 0 auto; padding: 8px 16px 60px; }
 .pill.warn { background: var(--warn-soft); color: var(--warn); }
 .pill.bad { background: var(--bad-soft); color: var(--bad); }
 
-.mode { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.mode button { border: 2px solid var(--line); background: transparent; color: var(--ink);
-  border-radius: 12px; padding: 14px 10px; text-align: left; cursor: pointer; font: inherit; }
-.mode button b { display: block; font-size: 17px; }
-.mode button span { color: var(--muted); font-size: 13px; }
-.mode button[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); }
-.mode button[aria-checked="true"] span { color: var(--accent); }
+.presets .group { font-size: 13px; font-weight: 600; color: var(--muted); margin: 14px 0 8px;
+  text-transform: uppercase; letter-spacing: .06em; }
+.presets .group:first-child { margin-top: 0; }
+.preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); gap: 8px; }
+.preset { display: grid; grid-template-columns: 36px 1fr; column-gap: 10px; row-gap: 2px;
+  align-items: start; align-content: start;
+  border: 2px solid var(--line); background: transparent; color: var(--ink); border-radius: 12px;
+  padding: 12px; text-align: left; font: inherit; cursor: pointer; }
+.preset:hover { border-color: var(--muted); }
+.preset[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.preset .pico { grid-row: span 3; width: 36px; height: 36px; padding: 6px; border-radius: 9px;
+  background: var(--line); fill: none; stroke: currentColor; stroke-width: 1.75;
+  stroke-linecap: round; stroke-linejoin: round; }
+.preset[aria-checked="true"] .pico { background: var(--accent); color: var(--accent-ink); }
+.preset .ptitle { font-weight: 600; font-size: 15px; }
+.preset .pdesc { font-size: 13px; color: var(--muted); line-height: 1.35; }
+.preset .pspec { font-size: 12px; color: var(--accent); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.preset .pspec span { white-space: nowrap; }
+.rec { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  background: var(--accent-soft); color: var(--accent); padding: 2px 6px; border-radius: 6px;
+  vertical-align: 2px; margin-left: 4px; white-space: nowrap; }
+.preset[aria-checked="true"] .rec { background: var(--card); }
+#custom { margin: 10px 0 0; }
 .msg { font-size: 19px; margin: 16px 0 2px; font-weight: 600; }
 
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
@@ -67,10 +83,12 @@ ol.steps li { margin: 4px 0; }
   place-items: center; font-size: 11px; font-weight: 700; color: var(--muted); flex: none; }
 .items .meta { flex: 1; min-width: 0; }
 .items .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; color: var(--ink); text-decoration: none; }
+.items .detail a { color: var(--accent); }
 .items .detail { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+.settings > summary.settings-toggle { cursor: pointer; font-weight: 600; padding: 2px 0; }
+.settings[open] > summary.settings-toggle { margin-bottom: 6px; }
 .settings details { border-top: 1px solid var(--line); padding: 4px 0; }
-.settings details:first-of-type { border-top: none; }
 .settings summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
 label { display: block; margin: 10px 0; font-size: 14px; }
 label.check { display: flex; gap: 10px; align-items: center; }

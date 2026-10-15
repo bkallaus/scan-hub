@@ -41,7 +41,6 @@ function fillForm() {
       el.value = v ?? "";
     }
   }
-  $$("[data-mode]").forEach((b) => b.setAttribute("aria-checked", b.dataset.mode === settings.mode));
 }
 
 async function save(patch, msg = "Saved") {
@@ -59,8 +58,44 @@ for (const el of $$("[data-key]")) {
     save(nested(el.dataset.key, v));
   });
 }
-$$("[data-mode]").forEach((b) => b.addEventListener("click", () =>
-  save({ mode: b.dataset.mode }, b.dataset.mode === "photo" ? "Photo mode" : "Document mode")));
+
+// ---------------------------------------------------------------- presets
+const ICONS = {
+  bolt: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="m12.5 10.5-3 4.5h4l-3 4.5"/>',
+  doc: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6M9 9h2"/>',
+  sparkle: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="m12 10.5 1.1 2.4 2.4 1.1-2.4 1.1L12 17.5l-1.1-2.4-2.4-1.1 2.4-1.1z"/>',
+  stack: '<rect x="7" y="7" width="14" height="12" rx="1.5"/><path d="M4 16V5.5A1.5 1.5 0 0 1 5.5 4H17"/><path d="m21 16-4-4-7 7"/>',
+  image: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 16-5-5-8 8"/>',
+  archive: '<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+};
+const GROUPS = { document: "Documents → PDF", photo: "Photos → image files" };
+let presets = [];
+
+function renderPresets() {
+  $("#presets").innerHTML = Object.entries(GROUPS).map(([mode, label]) => `
+    <h3 class="group">${label}</h3>
+    <div class="preset-grid">${presets.filter((p) => p.mode === mode).map((p) => `
+      <button class="preset" role="radio" aria-checked="false" data-preset="${esc(p.id)}">
+        <svg class="pico" viewBox="0 0 24 24" aria-hidden="true">${ICONS[p.icon] || ICONS.doc}</svg>
+        <span class="ptitle">${esc(p.title)}${p.recommended ? ' <span class="rec">Recommended</span>' : ""}</span>
+        <span class="pdesc">${esc(p.desc)}</span>
+        <span class="pspec">${p.spec.split(" · ").map((x) => `<span>${esc(x)}</span>`).join(" · ")}</span>
+      </button>`).join("")}
+    </div>`).join("");
+  $$("[data-preset]").forEach((b) => (b.onclick = async () => {
+    try {
+      settings = await api(`/api/presets/${b.dataset.preset}/apply`, { method: "POST" });
+      fillForm(); markPreset(b.dataset.preset);
+      toast(presets.find((p) => p.id === b.dataset.preset).title);
+      refresh();
+    } catch (e) { toast("Not changed: " + e.message); }
+  }));
+}
+
+function markPreset(id) {
+  $$("[data-preset]").forEach((b) => b.setAttribute("aria-checked", b.dataset.preset === id));
+  $("#custom").hidden = !!id || !presets.length;
+}
 
 // ---------------------------------------------------------------- actions
 const act = (p, msg) => api(p, { method: "POST" }).then(() => msg && toast(msg)).catch((e) => toast(e.message));
@@ -106,6 +141,7 @@ function renderStatus(st) {
     if (sc.state === "idle") $("#msg").textContent = `Load more pages within ${pd.seconds_left}s to add to this PDF, or tap Finish`;
   }
   $("#simbar").hidden = !st.simulate;
+  markPreset(st.preset);
   renderDrive(st.drive);
   // Keep in step with changes made from another phone/computer.
   if (settings && (settings.mode !== st.mode || settings.scanner.paused !== st.paused)) {
@@ -219,5 +255,6 @@ async function loop() {
     catch (e) { $("#msg").textContent = "Can't reach ScanHub. Retrying…"; await new Promise((r) => setTimeout(r, 3000)); }
   }
   fillForm();
+  try { presets = await api("/api/presets"); renderPresets(); } catch (e) { /* page still works without them */ }
   loop();
 })();

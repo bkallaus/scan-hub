@@ -24,10 +24,8 @@
   </div>
 
   <section class="card hero">
-    <div class="mode" role="radiogroup" aria-label="Scan mode">
-      <button data-mode="document" role="radio"><b>Documents</b><span>→ PDF</span></button>
-      <button data-mode="photo" role="radio"><b>Photos</b><span>→ JPEG / PNG / TIFF</span></button>
-    </div>
+    <div id="presets" class="presets" role="radiogroup" aria-label="What are you scanning?"></div>
+    <p id="custom" class="small muted" hidden>Custom settings in use. Pick a preset above, or adjust them under <b>All settings</b>.</p>
     <p id="msg" class="msg">Connecting…</p>
     <p id="proc" class="small"></p>
     <p id="device" class="muted small"></p>
@@ -54,8 +52,8 @@
     <ul id="items" class="items"><li class="muted">Nothing yet. Load paper into the scanner.</li></ul>
   </section>
 
-  <section class="card settings">
-    <h2>Settings</h2>
+  <details class="card settings" id="allSettings">
+    <summary class="settings-toggle">All settings</summary>
 
     <details open>
       <summary>Documents (PDF)</summary>
@@ -86,7 +84,7 @@
       <summary>Photos</summary>
       <label>Resolution
         <select data-key="photo.resolution" data-type="int">
-          <option>300</option><option>600</option>
+          <option>300</option><option>600</option><option>1200</option>
         </select></label>
       <label>Format
         <select data-key="photo.format">
@@ -153,7 +151,7 @@
       <summary>Log</summary>
       <pre id="logs" class="pre"></pre>
     </details>
-  </section>
+  </details>
 </main>
 <div id="toast" class="toast" hidden></div>
 <script src="/static/app.js"></script>
