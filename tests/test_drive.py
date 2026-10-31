@@ -133,7 +133,7 @@ def test_uploader_success_keeps_local_copy(d, monkeypatch, tmp_path):
     f = tmp_path / "doc.pdf"
     f.write_bytes(b"x")
     iid = store.add(f, f.name, "pdf", "scan", "Scans/PDF", "pending")
-    monkeypatch.setattr(d, "upload", lambda p, folder: ("ID", "LINK"))
+    monkeypatch.setattr(d, "upload", lambda p, folder, extra=None: ("ID", "LINK"))
     Uploader()._do(store.claim_next())
     item = store.get(iid)
     assert item["status"] == "done" and item["drive_link"] == "LINK"
@@ -145,7 +145,7 @@ def test_uploader_removes_scan_when_not_keeping_local(d, monkeypatch, tmp_path):
     f = tmp_path / "doc.pdf"
     f.write_bytes(b"x")
     store.add(f, f.name, "pdf", "scan", "Scans/PDF", "pending")
-    monkeypatch.setattr(d, "upload", lambda p, folder: ("ID", "LINK"))
+    monkeypatch.setattr(d, "upload", lambda p, folder, extra=None: ("ID", "LINK"))
     Uploader()._do(store.claim_next())
     assert not f.exists()
 

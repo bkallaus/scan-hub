@@ -407,7 +407,7 @@ class Processor(threading.Thread):
             status = "pending" if s["drive"]["upload_scans"] else "local"
             folder = s["drive"]["pdf_folder"] if out["kind"] == "pdf" else s["drive"]["photo_folder"]
             store.add(out["path"], out["path"].name, out["kind"], "scan", folder, status,
-                      size=out["path"].stat().st_size, pages=out.get("pages"))
+                      size=out["path"].stat().st_size, pages=out.get("pages"), meta=out.get("meta"))
         if outputs:
             log.info("Saved %d file(s): %s", len(outputs), ", ".join(o["path"].name for o in outputs))
         for d in job["dirs"]:

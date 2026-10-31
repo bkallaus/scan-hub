@@ -8,7 +8,8 @@ from pathlib import Path
 _DATA = tempfile.mkdtemp(prefix="scanhub-test-")
 os.environ["DATA_DIR"] = _DATA
 os.environ["SIMULATE_SCANNER"] = "1"
-for k in ("SCANNER_IP", "SCANNER_DEVICE", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "WEB_PASSWORD"):
+for k in ("SCANNER_IP", "SCANNER_DEVICE", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "WEB_PASSWORD",
+          "ANTHROPIC_API_KEY"):
     os.environ.pop(k, None)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 

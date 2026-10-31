@@ -94,6 +94,7 @@ ol.steps li { margin: 4px 0; }
 .items .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; color: var(--ink); text-decoration: none; }
 .items .detail a { color: var(--accent); }
 .items .detail { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.items .detail.summary { color: var(--ink); }
 
 .settings > summary.settings-toggle { cursor: pointer; font-weight: 600; padding: 2px 0; }
 .settings[open] > summary.settings-toggle { margin-bottom: 6px; }

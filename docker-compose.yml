@@ -18,6 +18,7 @@ services:
       # WEB_PASSWORD: change-me       # optional: protects the web UI (any username)
       # GOOGLE_CLIENT_ID: ...         # optional: can be entered in the web UI instead
       # GOOGLE_CLIENT_SECRET: ...
+      # ANTHROPIC_API_KEY: sk-ant-...  # optional: for titles and summaries written by Claude
       # SIMULATE_SCANNER: "1"         # test everything without the scanner
     volumes:
       - ./data:/data                  # settings, Google token, local copies of scans

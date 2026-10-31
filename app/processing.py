@@ -16,6 +16,7 @@ from .config import SCANS_DIR, WORK_DIR
 log = logging.getLogger("processing")
 Image.MAX_IMAGE_PIXELS = None  # long-paper scans are legitimately huge
 BACK_BLANK_PERCENT = 0.15     # photo backs with less "ink" than this are dropped
+DESCRIBE_PAGES = 3            # pages read for a title and gist when the PDF isn't OCR'd
 
 
 # ------------------------------------------------------------------ helpers
@@ -192,7 +193,7 @@ def open_page(path):
         return None
 
 
-def make_pdf(pages, d, dpi):
+def make_pdf(pages, d, dpi, s=None):
     # Convert one page at a time to a compressed file so a 100-page batch
     # doesn't need gigabytes of RAM.
     tmp = Path(tempfile.mkdtemp(prefix="tmp_pdf_", dir=WORK_DIR))
@@ -228,14 +229,28 @@ def make_pdf(pages, d, dpi):
             final_pdf = run_ocr(raw_pdf, tmp / "ocr.pdf", d["ocr_lang"], sidecar) or raw_pdf
             if sidecar.exists():
                 text = sidecar.read_text(errors="replace")
-        title = ""
-        if "{title}" in d["filename"]:
-            # Without OCR, read just the first page; that's where the heading is.
-            title = doc_title(text or page_text(parts[0], d["ocr_lang"]))
+        title, meta = "", None
+        describe = d.get("describe", "off") != "off" and s is not None
+        if "{title}" in d["filename"] or describe:
+            if not text:
+                # Without OCR, read the first pages; that's where the heading and gist are.
+                n = DESCRIBE_PAGES if describe else 1
+                text = "\f".join(page_text(p, d["ocr_lang"]) for p in parts[:n])
+            if describe:
+                from .gist import describe as describe_text  # gist imports this module
+                meta = describe_text(text, s)
+                if meta:
+                    meta["text"] = text
+                title = (meta or {}).get("title", "")
+            if not title:
+                title = doc_title(text)
             log.info("Named from content: %s", title or "(no title found)")
         dest = unique_path(output_dir(), render_name(d["filename"], 1, "document", title=title), ".pdf")
         shutil.move(str(final_pdf), dest)
-        return [{"path": dest, "kind": "pdf", "pages": len(parts)}]
+        out = {"path": dest, "kind": "pdf", "pages": len(parts)}
+        if meta:
+            out["meta"] = meta
+        return [out]
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -311,5 +326,5 @@ def save_photos(pages, ph, dpi):
 
 def process(pages, mode, s, dpi=None):
     if mode == "document":
-        return make_pdf(pages, s["document"], dpi or s["document"]["resolution"])
+        return make_pdf(pages, s["document"], dpi or s["document"]["resolution"], s)
     return save_photos(pages, s["photo"], dpi or s["photo"]["resolution"])

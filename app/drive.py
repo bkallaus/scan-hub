@@ -272,7 +272,8 @@ class Drive:
         return r.json()["id"]
 
     # ------------------------------------------------------------ upload
-    def upload(self, path, folder_path):
+    def upload(self, path, folder_path, extra=None):
+        """Upload a file; `extra` is more Drive file metadata (description, ...)."""
         path = Path(path)
         folder_id = self.ensure_folder(folder_path)
         mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
@@ -281,7 +282,7 @@ class Drive:
         r = self.http.post(UPLOAD, params={"uploadType": "resumable", "fields": "id,webViewLink"},
                            headers={**h, "X-Upload-Content-Type": mime, "X-Upload-Content-Length": str(size),
                                     "Content-Type": "application/json; charset=UTF-8"},
-                           json={"name": path.name, "parents": [folder_id]}, timeout=30)
+                           json={**(extra or {}), "name": path.name, "parents": [folder_id]}, timeout=30)
         if r.status_code == 404:
             # Upload folder vanished between the check and the upload: forget it.
             self._verified.pop(folder_id, None)
@@ -299,6 +300,52 @@ class Drive:
 
 
 drive = Drive()
+
+
+INDEXABLE_MAX = 120_000  # Drive keeps at most 128 KB of contentHints.indexableText
+
+
+def _prop(key, value):
+    """A Drive custom property; key + value may be at most 124 bytes."""
+    value = " ".join(str(value).split())
+    room = 124 - len(key.encode())
+    while len(value.encode()) > room:
+        value = value[:-1]
+    return value
+
+
+def file_metadata(item):
+    """Drive metadata for a stored item: when it was scanned and, for described
+    documents, a description, searchable properties and the recognised text."""
+    out = {}
+    if item.get("created"):
+        out["createdTime"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(item["created"]))
+    try:
+        meta = json.loads(item.get("meta") or "null") or {}
+    except ValueError:
+        meta = {}
+    if not meta:
+        return out
+    facts = [f"{label}: {meta[k]}" for label, k in
+             (("Type", "doc_type"), ("From", "sender"), ("Dated", "doc_date")) if meta.get(k)]
+    if item.get("pages"):
+        facts.append(f"Pages: {item['pages']}")
+    parts = [meta.get("summary", ""), " · ".join(facts)]
+    if meta.get("keywords"):
+        parts.append("Keywords: " + ", ".join(meta["keywords"]))
+    desc = "\n\n".join(p for p in parts if p)
+    if desc:
+        out["description"] = desc
+    props = {"source": "ScanHub"}
+    for key, k in (("title", "title"), ("docType", "doc_type"), ("sender", "sender"), ("documentDate", "doc_date")):
+        if meta.get(k):
+            props[key] = _prop(key, meta[k])
+    out["properties"] = props
+    text = (meta.get("text") or "").replace("\f", "\n").strip()
+    if text:
+        b = text.encode()[:INDEXABLE_MAX]
+        out["contentHints"] = {"indexableText": b.decode(errors="ignore")}
+    return out
 
 
 # ---------------------------------------------------------------- upload worker
@@ -331,7 +378,7 @@ class Uploader(threading.Thread):
             store.update(item["id"], status="error", error="Local file no longer exists")
             return
         try:
-            fid, link = drive.upload(path, item["folder"])
+            fid, link = drive.upload(path, item["folder"], file_metadata(item))
         except AuthError as e:
             store.update(item["id"], status="pending", next_try=time.time() + 30, error=str(e))
             return

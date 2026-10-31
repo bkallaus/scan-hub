@@ -79,6 +79,33 @@ text, `{title}` becomes `Scan`. For other languages, build with
 `docker compose build --build-arg OCR_LANGS="eng spa"` and set
 **OCR language** to `eng+spa`.
 
+**Titles, summaries and Drive details.** Under **Settings → Documents**, set
+**Title and summary** to describe each PDF from its text (the OCR text, or the
+first three pages if OCR is off):
+
+- **On this machine** uses simple rules, the same as `{title}`, plus the
+  document's date and its first sentences as a summary. Nothing is sent
+  anywhere.
+- **With Claude** sends the recognised *text* (not the images) to Anthropic's
+  Claude API, which reads it and writes a much better title, for example
+  `Acme Power Electric Bill October 2026`, and a one- or two-line summary of
+  what matters ("$84.12 due October 24"). Put your API key from
+  <https://console.anthropic.com> in **Settings → Claude**, or set
+  `ANTHROPIC_API_KEY` in `docker-compose.yml`. Very long stacks send only the
+  first 60,000 characters. If Claude can't be reached, ScanHub falls back to
+  the local rules.
+
+Use `{title}` in the file name to name the file with the title. When the PDF
+is uploaded, Google Drive also gets:
+
+- **Description**: the summary, the type, who it's from, its date, the page
+  count and a few keywords. It shows in Drive's details panel.
+- **Properties** `title`, `docType`, `sender` and `documentDate`, which you
+  can search for in the Drive API.
+- **Searchable text**, so Drive search finds the words even when the PDF has
+  no OCR text layer.
+- **Created time**: when it was scanned, not when it was uploaded.
+
 ## If something goes wrong
 
 - **"No scanner found":** make sure the scanner is on and awake (press its

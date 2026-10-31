@@ -83,6 +83,22 @@
         <input type="number" min="0" max="600" data-key="document.combine_seconds" data-type="int"></label>
       <label>File name <span class="hint">{date} {time} {n} {title} (read from the page, e.g. {title}_{date})</span>
         <input data-key="document.filename"></label>
+      <label>Title and summary <span class="hint">read the text, write a {title}, a short summary and Drive details</span>
+        <select data-key="document.describe">
+          <option value="off">Off</option>
+          <option value="local">On this machine (simple rules)</option>
+          <option value="claude">With Claude (sends the text, not the images)</option>
+        </select></label>
+    </details>
+
+    <details>
+      <summary>Claude</summary>
+      <p class="hint">Only used when Documents → Title and summary is set to "With Claude".
+        Get a key at console.anthropic.com.</p>
+      <label>API key
+        <input data-key="claude.api_key" type="password" autocomplete="off" placeholder="sk-ant-…"></label>
+      <label>Model
+        <input data-key="claude.model" placeholder="claude-opus-5-5"></label>
     </details>
 
     <details>

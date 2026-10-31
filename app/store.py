@@ -1,4 +1,5 @@
 """SQLite-backed record of scanned files and their upload state."""
+import json
 import logging
 import sqlite3
 import threading
@@ -52,7 +53,8 @@ CREATE TABLE IF NOT EXISTS items (
     pages INTEGER,
     fingerprint TEXT,
     created REAL,
-    updated REAL
+    updated REAL,
+    meta TEXT                    -- JSON: title, summary, doc_type, ... for Drive
 );
 CREATE INDEX IF NOT EXISTS items_status ON items(status, next_try);
 CREATE INDEX IF NOT EXISTS items_fp ON items(fingerprint);
@@ -65,17 +67,21 @@ class Store:
         self.db = sqlite3.connect(STATE_DIR / "scanhub.db", check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
+        cols = {r["name"] for r in self.db.execute("PRAGMA table_info(items)")}
+        if "meta" not in cols:  # databases from before scans had a description
+            self.db.execute("ALTER TABLE items ADD COLUMN meta TEXT")
         # Anything mid-upload when we stopped goes back to pending.
         self.db.execute("UPDATE items SET status='pending' WHERE status='uploading'")
         self.db.commit()
 
-    def add(self, path, name, kind, source, folder, status, size=None, pages=None, fingerprint=None):
+    def add(self, path, name, kind, source, folder, status, size=None, pages=None, fingerprint=None, meta=None):
         now = time.time()
         with self._lock:
             cur = self.db.execute(
-                "INSERT INTO items(path,name,kind,source,folder,status,size,pages,fingerprint,created,updated)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                (str(path), name, kind, source, folder, status, size, pages, fingerprint, now, now),
+                "INSERT INTO items(path,name,kind,source,folder,status,size,pages,fingerprint,created,updated,meta)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (str(path), name, kind, source, folder, status, size, pages, fingerprint, now, now,
+                 json.dumps(meta) if meta else None),
             )
             self.db.commit()
             return cur.lastrowid

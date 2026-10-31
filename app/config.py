@@ -22,6 +22,7 @@ WEB_PORT = int(os.environ.get("WEB_PORT", "8680"))
 WEB_PASSWORD = os.environ.get("WEB_PASSWORD", "")
 
 SECRET_MASK = "••••••••"
+SECRETS = (("drive", "client_secret"), ("claude", "api_key"))
 
 DEFAULTS = {
     "mode": "document",  # "document" -> PDF, "photo" -> image files
@@ -44,6 +45,7 @@ DEFAULTS = {
         "ocr_lang": "eng",
         "combine_seconds": 0,    # >0: batches within this window join one PDF
         "filename": "Scan_{date}_{time}",
+        "describe": "off",       # off | local | claude: title + gist + Drive metadata
     },
     "photo": {
         "resolution": 600,
@@ -61,6 +63,10 @@ DEFAULTS = {
         "photo_folder": "Scans/Photos",
         "keep_local_scans": True,
     },
+    "claude": {
+        "api_key": "",           # used only when document.describe is "claude"
+        "model": "claude-opus-5-5",
+    },
 }
 
 ENV_OVERRIDES = {
@@ -68,6 +74,7 @@ ENV_OVERRIDES = {
     "SCANNER_DEVICE": ("scanner", "device"),
     "GOOGLE_CLIENT_ID": ("drive", "client_id"),
     "GOOGLE_CLIENT_SECRET": ("drive", "client_secret"),
+    "ANTHROPIC_API_KEY": ("claude", "api_key"),
 }
 
 
@@ -118,6 +125,7 @@ CHOICES = {
     ("mode",): {"document", "photo"},
     ("scanner", "detection"): {"auto", "sensor", "probe", "manual"},
     ("document", "color"): {"color", "gray", "bw"},
+    ("document", "describe"): {"off", "local", "claude"},
     ("photo", "format"): {"jpg", "png", "tiff"},
 }
 
@@ -143,6 +151,13 @@ def _validate(s):
     if not re.fullmatch(r"[A-Za-z_]+(\+[A-Za-z_]+)*", lang):
         raise ValueError("OCR language must be Tesseract codes like eng or eng+spa")
     s["document"]["ocr_lang"] = lang
+    s["claude"]["api_key"] = s["claude"]["api_key"].strip()
+    model = s["claude"]["model"].strip() or "claude-opus-5-5"
+    if not re.fullmatch(r"[A-Za-z0-9._:@/-]+", model):
+        raise ValueError("Claude model must be a model id like claude-opus-5-5")
+    s["claude"]["model"] = model
+    if s["document"]["describe"] == "claude" and not s["claude"]["api_key"]:
+        raise ValueError("Describing scans with Claude needs a Claude API key (Settings → Claude)")
     for sect, key in (("drive", "pdf_folder"), ("drive", "photo_folder")):
         s[sect][key] = "/".join(p.strip() for p in s[sect][key].split("/") if p.strip()) or "Scans"
     for sect in ("document", "photo"):
@@ -224,17 +239,19 @@ class Settings:
 
     def public(self):
         d = self.get()
-        if d["drive"]["client_secret"]:
-            d["drive"]["client_secret"] = SECRET_MASK
+        for sect, key in SECRETS:
+            if d[sect][key]:
+                d[sect][key] = SECRET_MASK
         return d
 
     def update(self, patch):
         with self._lock:
             if not isinstance(patch, dict):
                 raise ValueError("Settings must be a JSON object")
-            drv = patch.get("drive")
-            if isinstance(drv, dict) and drv.get("client_secret") == SECRET_MASK:
-                drv.pop("client_secret")
+            for sect, key in SECRETS:
+                part = patch.get(sect)
+                if isinstance(part, dict) and part.get(key) == SECRET_MASK:
+                    part.pop(key)
             new = copy.deepcopy(self._data)
             _deep_merge(new, _clean(DEFAULTS, patch))
             _validate(new)

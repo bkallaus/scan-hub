@@ -1,5 +1,6 @@
 """Web UI + JSON API. Run with: python3 -m app.main"""
 import base64
+import json
 import logging
 import secrets
 import time
@@ -184,8 +185,15 @@ def drive_disconnect(_):
 
 
 def _item_out(i):
-    return {k: i[k] for k in ("id", "name", "kind", "source", "folder", "status", "attempts",
-                              "drive_link", "error", "size", "pages", "created", "updated")}
+    out = {k: i[k] for k in ("id", "name", "kind", "source", "folder", "status", "attempts",
+                             "drive_link", "error", "size", "pages", "created", "updated")}
+    try:
+        meta = json.loads(i.get("meta") or "null") or {}
+    except ValueError:
+        meta = {}
+    out["title"] = meta.get("title", "")
+    out["summary"] = meta.get("summary", "")
+    return out
 
 
 def items(request: Request):
