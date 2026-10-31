@@ -7,3 +7,4 @@ tests/
 data-dev/
 dist/
 .pytest_cache/
+gist/node_modules/

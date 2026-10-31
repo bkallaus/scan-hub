@@ -328,6 +328,8 @@ def file_metadata(item):
         return out
     facts = [f"{label}: {meta[k]}" for label, k in
              (("Type", "doc_type"), ("From", "sender"), ("Dated", "doc_date")) if meta.get(k)]
+    if meta.get("topics"):
+        facts.append("Topics: " + ", ".join(t["name"] for t in meta["topics"]))
     if item.get("pages"):
         facts.append(f"Pages: {item['pages']}")
     parts = [meta.get("summary", ""), " · ".join(facts)]
@@ -340,6 +342,8 @@ def file_metadata(item):
     for key, k in (("title", "title"), ("docType", "doc_type"), ("sender", "sender"), ("documentDate", "doc_date")):
         if meta.get(k):
             props[key] = _prop(key, meta[k])
+    if meta.get("topics"):
+        props["topics"] = _prop("topics", ",".join(t["slug"] for t in meta["topics"]))
     out["properties"] = props
     text = (meta.get("text") or "").replace("\f", "\n").strip()
     if text:

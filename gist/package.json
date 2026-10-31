@@ -1,0 +1,10 @@
+{
+  "name": "scanhub-gist",
+  "private": true,
+  "description": "Tags scanned documents with topics using Desert Ant Labs' Gist (runs on this machine).",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@desert-ant-labs/gist": "4.2.3"
+  }
+}

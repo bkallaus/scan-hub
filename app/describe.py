@@ -1,10 +1,10 @@
 """Describe a scanned document from its OCR text: a title, a one- or two-line
-gist, and a few facts (type, sender, date) that go into Drive's metadata.
+summary, and a few facts (type, sender, date) that go into Drive's metadata.
 
 Two ways to do it:
   * "local"  - simple rules on this machine; nothing leaves the network.
   * "claude" - sends the recognised text (not the images) to Claude, which
-               reads the whole thing and writes a much better title and gist.
+               reads the whole thing and writes a much better title and summary.
 Either way, the result is a dict with the keys in FIELDS ("" when unknown).
 """
 import json
@@ -13,10 +13,10 @@ import re
 
 from .processing import DOC_WORDS, _NOISE, _clean_line, doc_title
 
-log = logging.getLogger("gist")
+log = logging.getLogger("describe")
 
 FIELDS = ("title", "summary", "doc_type", "sender", "doc_date", "keywords")
-MAX_CHARS = 60_000  # ~15k tokens: plenty for a gist, keeps a 100-page stack cheap
+MAX_CHARS = 60_000  # ~15k tokens: plenty for a summary, keeps a 100-page stack cheap
 DEFAULT_MODEL = "claude-opus-5-5"
 
 SYSTEM = """You file scanned paper documents for a household. You get the OCR \
@@ -27,7 +27,7 @@ Describe it so the person can find it later in Google Drive.
 Lead with who it is from, then what it is, then the period or subject if it \
 tells documents apart. 3-8 words, no date in YYYY-MM-DD form, no file extension. \
 E.g. "Acme Power Electric Bill October 2026", "Dr. Patel Visit Summary Knee MRI".
-- summary: the gist in one or two plain sentences: what it is and what matters \
+- summary: the point of it in one or two plain sentences: what it is and what matters \
 in it (amounts due and due dates, decisions, deadlines, account or policy \
 names). No account numbers, SSNs or other ID numbers in full.
 - doc_type: one or two words, e.g. Invoice, Bill, Statement, Letter, Receipt, \
@@ -110,7 +110,7 @@ def find_date(text):
     return best[1] if best else ""
 
 
-def local_gist(text):
+def local_summary(text):
     """A plain, rule-based description; good enough to search by."""
     out = empty()
     text = text or ""
@@ -121,7 +121,7 @@ def local_gist(text):
             out["doc_type"] = w.capitalize()
             break
     out["doc_date"] = find_date(first)
-    # The gist: the first few full sentences of running text on page one.
+    # The summary: the first few full sentences of running text on page one.
     sentences = []
     flat = " ".join(_clean_line(l) for l in first.splitlines()
                     if len(l.split()) >= 6 and not _NOISE.search(l.strip()))
@@ -135,7 +135,7 @@ def local_gist(text):
 
 
 # ------------------------------------------------------------------ Claude
-def claude_gist(text, api_key, model=DEFAULT_MODEL):
+def claude_summary(text, api_key, model=DEFAULT_MODEL, topics=()):
     """Ask Claude for the description. Returns None if it can't be had (no
     key, network down, refusal), so the caller can fall back to local rules."""
     if not (api_key and text.strip()):
@@ -155,7 +155,7 @@ def claude_gist(text, api_key, model=DEFAULT_MODEL):
             model=model or DEFAULT_MODEL,
             max_tokens=4000,
             system=SYSTEM,
-            messages=[{"role": "user", "content": f"<ocr_text>\n{body}\n</ocr_text>"}],
+            messages=[{"role": "user", "content": _user_content(body, topics)}],
             output_config={"effort": "low", "format": {"type": "json_schema", "schema": SCHEMA}},
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
@@ -180,19 +180,28 @@ def claude_gist(text, api_key, model=DEFAULT_MODEL):
         return None
 
 
-def describe(text, s):
-    """Describe a document per the settings' document.describe mode."""
+def _user_content(body, topics):
+    hint = ""
+    if topics:
+        names = ", ".join(t["name"] for t in topics)
+        hint = f"An on-device topic tagger put this document under: {names}.\n"
+    return f"{hint}<ocr_text>\n{body}\n</ocr_text>"
+
+
+def describe(text, s, topics=()):
+    """Describe a document per the settings' document.describe mode. `topics`
+    are Gist's tags, if any, which help Claude pick the title."""
     mode = s["document"]["describe"]
     if mode == "off":
         return None
     result = None
     if mode == "claude":
         c = s["claude"]
-        result = claude_gist(text, c["api_key"], c["model"])
+        result = claude_summary(text, c["api_key"], c["model"], topics)
         if result:
             log.info("Claude described the scan: %s", result["title"] or "(no title)")
     if not result:
-        result = local_gist(text)
+        result = local_summary(text)
     if not result["title"]:
         result["title"] = doc_title(text)  # Claude gave none; try the heading
     return result

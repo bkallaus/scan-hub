@@ -45,7 +45,8 @@ DEFAULTS = {
         "ocr_lang": "eng",
         "combine_seconds": 0,    # >0: batches within this window join one PDF
         "filename": "Scan_{date}_{time}",
-        "describe": "off",       # off | local | claude: title + gist + Drive metadata
+        "describe": "off",       # off | local | claude: title + summary + Drive metadata
+        "topics": False,         # tag topics with Desert Ant Labs' Gist (on this machine)
     },
     "photo": {
         "resolution": 600,
@@ -166,7 +167,7 @@ def _validate(s):
             fields = [f for _, f, _, _ in string.Formatter().parse(tpl) if f is not None]
         except ValueError:
             raise ValueError(f"{sect} file name has an unmatched {{ or }}")
-        allowed = ("date", "time", "n", "mode", "title") if sect == "document" else ("date", "time", "n", "mode")
+        allowed = ("date", "time", "n", "mode", "title", "topic") if sect == "document" else ("date", "time", "n", "mode")
         bad = [f for f in fields if f not in allowed]
         if bad:
             use = " ".join("{" + f + "}" for f in allowed)

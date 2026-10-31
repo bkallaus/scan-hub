@@ -243,6 +243,7 @@ async function loadItems() {
     return `<li><div class="ico">${ico}</div><div class="meta">
       <a class="name" href="/files/${i.id}" target="_blank">${esc(i.name)}</a>
       ${i.summary ? `<div class="detail summary" title="${esc(i.summary)}">${esc(i.summary)}</div>` : ""}
+      ${i.topics && i.topics.length ? `<div class="detail">${i.topics.map(esc).join(" · ")}</div>` : ""}
       <div class="detail">${st}${extra} · ${i.pages ? i.pages + " p · " : ""}${i.size ? size(i.size) + " · " : ""}${ago(i.created)}</div>
       ${err}</div></li>`;
   }).join("");

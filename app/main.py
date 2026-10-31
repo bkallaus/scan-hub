@@ -193,6 +193,7 @@ def _item_out(i):
         meta = {}
     out["title"] = meta.get("title", "")
     out["summary"] = meta.get("summary", "")
+    out["topics"] = [t.get("name", "") for t in meta.get("topics") or []]
     return out
 
 

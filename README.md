@@ -79,6 +79,24 @@ text, `{title}` becomes `Scan`. For other languages, build with
 `docker compose build --build-arg OCR_LANGS="eng spa"` and set
 **OCR language** to `eng+spa`.
 
+**Topic tags.** Under **Settings → Documents**, turn on **Tag topics with
+Gist** to tag each PDF with one to three of 36 topics, such as *Personal
+Finance*, *Health & Medicine* or *Law*, using [Gist](https://desertant.com/models/gist/)
+from Desert Ant Labs. Gist runs on this machine and reads the title and the
+start of the first page, in any of 101 languages. Use `{topic}` in the file
+name, for example `{topic} - {title}`, to get
+`Personal Finance - Acme Power Invoice.pdf`. If no heading is found, the top
+topic becomes the `{title}` too. The topics also go to Drive (see below) and
+help Claude pick a title.
+
+- The first tagged scan downloads the 74 MB model from Hugging Face into
+  `data/models/gist`. Later scans use that copy.
+- Gist's SDK sends license requests to Desert Ant Labs
+  (`events.desertant.com`). Your document text stays on this machine. Gist is
+  free for most apps under the
+  [Desert Ant Labs Source-Available License](https://license.desertant.com/).
+- Gist's Node build runs on x86_64 and arm64 Linux.
+
 **Titles, summaries and Drive details.** Under **Settings → Documents**, set
 **Title and summary** to describe each PDF from its text (the OCR text, or the
 first three pages if OCR is off):
@@ -96,12 +114,12 @@ first three pages if OCR is off):
   the local rules.
 
 Use `{title}` in the file name to name the file with the title. When the PDF
-is uploaded, Google Drive also gets:
+is uploaded with topics or a summary, Google Drive also gets:
 
-- **Description**: the summary, the type, who it's from, its date, the page
-  count and a few keywords. It shows in Drive's details panel.
-- **Properties** `title`, `docType`, `sender` and `documentDate`, which you
-  can search for in the Drive API.
+- **Description**: the summary, the type, who it's from, its date, the
+  topics, the page count and a few keywords. It shows in Drive's details panel.
+- **Properties** `title`, `docType`, `sender`, `documentDate` and `topics`
+  (topic ids such as `finance,law`), which you can search for in the Drive API.
 - **Searchable text**, so Drive search finds the words even when the PDF has
   no OCR text layer.
 - **Created time**: when it was scanned, not when it was uploaded.

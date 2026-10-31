@@ -81,8 +81,10 @@
         <input data-key="document.ocr_lang"></label>
       <label>Combine batches within (seconds) <span class="hint">0 = every batch is its own PDF</span>
         <input type="number" min="0" max="600" data-key="document.combine_seconds" data-type="int"></label>
-      <label>File name <span class="hint">{date} {time} {n} {title} (read from the page, e.g. {title}_{date})</span>
+      <label>File name <span class="hint">{date} {time} {n} {title} {topic} (read from the page, e.g. {title}_{date})</span>
         <input data-key="document.filename"></label>
+      <label class="check"><input type="checkbox" data-key="document.topics"> Tag topics with Gist
+        <span class="hint">on this machine; first use downloads a 74 MB model</span></label>
       <label>Title and summary <span class="hint">read the text, write a {title}, a short summary and Drive details</span>
         <select data-key="document.describe">
           <option value="off">Off</option>

@@ -16,7 +16,7 @@ from .config import SCANS_DIR, WORK_DIR
 log = logging.getLogger("processing")
 Image.MAX_IMAGE_PIXELS = None  # long-paper scans are legitimately huge
 BACK_BLANK_PERCENT = 0.15     # photo backs with less "ink" than this are dropped
-DESCRIBE_PAGES = 3            # pages read for a title and gist when the PDF isn't OCR'd
+DESCRIBE_PAGES = 3            # pages read for a title, summary and topics when the PDF isn't OCR'd
 
 
 # ------------------------------------------------------------------ helpers
@@ -70,10 +70,10 @@ def autocrop(img):
     return img.crop(box)
 
 
-NAME_FIELDS = ("date", "time", "n", "mode", "title")
+NAME_FIELDS = ("date", "time", "n", "mode", "title", "topic")
 
 
-def render_name(template, n=1, mode="", now=None, title=""):
+def render_name(template, n=1, mode="", now=None, title="", topic=""):
     now = now or time.localtime()
     values = {
         "date": time.strftime("%Y-%m-%d", now),
@@ -81,6 +81,7 @@ def render_name(template, n=1, mode="", now=None, title=""):
         "n": f"{n:03d}",
         "mode": mode,
         "title": title or "Scan",
+        "topic": topic or "Document",
     }
     try:
         name = template.format_map(values)
@@ -147,6 +148,11 @@ def doc_title(text, max_words=7, max_len=60):
     if len(title) > max_len:
         title = title[:max_len].rsplit(" ", 1)[0]
     return title
+
+
+def topic_title(name):
+    """A Gist topic name that reads well in a file name ("Health and Medicine")."""
+    return " ".join(name.replace("&", " and ").replace("/", " ").split())
 
 
 def page_text(image_path, lang):
@@ -229,23 +235,35 @@ def make_pdf(pages, d, dpi, s=None):
             final_pdf = run_ocr(raw_pdf, tmp / "ocr.pdf", d["ocr_lang"], sidecar) or raw_pdf
             if sidecar.exists():
                 text = sidecar.read_text(errors="replace")
-        title, meta = "", None
+        title, meta, topics = "", None, []
+        fn = d["filename"]
         describe = d.get("describe", "off") != "off" and s is not None
-        if "{title}" in d["filename"] or describe:
+        want_topics = bool(d.get("topics"))
+        if "{title}" in fn or "{topic}" in fn or describe or want_topics:
             if not text:
-                # Without OCR, read the first pages; that's where the heading and gist are.
-                n = DESCRIBE_PAGES if describe else 1
+                # Without OCR, read the first pages; that's where the heading and summary are.
+                n = DESCRIBE_PAGES if describe or want_topics else 1
                 text = "\f".join(page_text(p, d["ocr_lang"]) for p in parts[:n])
+            heading = doc_title(text)
+            if want_topics:
+                from .topics import gist_input, tag
+                topics = tag(gist_input(heading, text))
+                log.info("Topics: %s", ", ".join(t["name"] for t in topics) or "(none)")
             if describe:
-                from .gist import describe as describe_text  # gist imports this module
-                meta = describe_text(text, s)
-                if meta:
-                    meta["text"] = text
+                from .describe import describe as describe_text  # imports this module
+                meta = describe_text(text, s, topics)
                 title = (meta or {}).get("title", "")
-            if not title:
-                title = doc_title(text)
+            title = title or heading or (topic_title(topics[0]["name"]) if topics else "")
+            if topics:
+                if meta is None:
+                    from .describe import empty
+                    meta = dict(empty(), title=title)
+                meta["topics"] = topics
+            if meta:
+                meta["text"] = text
             log.info("Named from content: %s", title or "(no title found)")
-        dest = unique_path(output_dir(), render_name(d["filename"], 1, "document", title=title), ".pdf")
+        topic = topic_title(topics[0]["name"]) if topics else ""
+        dest = unique_path(output_dir(), render_name(fn, 1, "document", title=title, topic=topic), ".pdf")
         shutil.move(str(final_pdf), dest)
         out = {"path": dest, "kind": "pdf", "pages": len(parts)}
         if meta:

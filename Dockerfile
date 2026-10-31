@@ -2,6 +2,16 @@
 # Ubuntu because Epson builds and tests its Linux driver there. If apt reports
 # unmet dependencies for the Epson .debs, try: --build-arg BASE_IMAGE=ubuntu:24.04
 ARG BASE_IMAGE=ubuntu:22.04
+
+# Topic tags use Desert Ant Labs' Gist through its Node SDK (prebuilt native
+# core for linux-x64 and linux-arm64). Node and the SDK are built here and
+# copied into the final image.
+FROM node:22-bookworm-slim AS gist
+WORKDIR /gist
+COPY gist/package.json gist/package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+COPY gist/tag.mjs ./
+
 FROM ${BASE_IMAGE}
 
 # Epson Scan 2 bundle (core driver + closed-source network plugin), x86_64 .deb.
@@ -19,6 +29,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     QT_QPA_PLATFORM=offscreen \
     DATA_DIR=/data \
+    GIST_MODEL_DIR=/data/models/gist \
     WEB_PORT=8680
 
 # psmisc: the epsonscan2 backend shells out to killall.
@@ -65,6 +76,8 @@ RUN python3 -m venv /opt/venv \
  && /opt/venv/bin/pip install --no-cache-dir -r /app/requirements.txt
 
 COPY app /app/app
+COPY --from=gist /usr/local/bin/node /usr/local/bin/node
+COPY --from=gist /gist /app/gist
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 

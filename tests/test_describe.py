@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from app import drive as drive_mod
-from app import gist, processing
+from app import describe, processing
 from app.config import DEFAULTS, SECRET_MASK, settings
 from app.store import store
 from conftest import text_page
@@ -23,24 +23,24 @@ The amount due of $84.12 must be paid by October 24, 2026 to avoid a late fee.
 
 
 def test_find_date_formats():
-    assert gist.find_date("Dated 10/03/2026, paid 2025-01-02") == "2026-10-03"  # the first one
-    assert gist.find_date("on 10/03/2026") == "2026-10-03"
-    assert gist.find_date("Statement Date: October 3, 2026") == "2026-10-03"
-    assert gist.find_date("3 Oct 2026") == "2026-10-03"
-    assert gist.find_date("13/45/2026 nothing") == ""
+    assert describe.find_date("Dated 10/03/2026, paid 2025-01-02") == "2026-10-03"  # the first one
+    assert describe.find_date("on 10/03/2026") == "2026-10-03"
+    assert describe.find_date("Statement Date: October 3, 2026") == "2026-10-03"
+    assert describe.find_date("3 Oct 2026") == "2026-10-03"
+    assert describe.find_date("13/45/2026 nothing") == ""
 
 
-def test_local_gist():
-    g = gist.local_gist(BILL)
+def test_local_summary():
+    g = describe.local_summary(BILL)
     assert g["title"]
     assert g["doc_type"] == "Statement"
     assert g["doc_date"] == "2026-10-03"
     assert g["summary"].startswith("Your electricity use")
-    assert set(g) == set(gist.FIELDS)
+    assert set(g) == set(describe.FIELDS)
 
 
-def test_local_gist_empty_text():
-    assert gist.local_gist("") == gist.empty()
+def test_local_summary_empty_text():
+    assert describe.local_summary("") == describe.empty()
 
 
 class FakeClaude:
@@ -94,28 +94,28 @@ ANSWER = {"title": "Acme Power Electric Bill October 2026", "summary": "Electric
           "keywords": ["electricity", "utilities"]}
 
 
-def test_claude_gist_request_and_result(claude):
+def test_claude_summary_request_and_result(claude):
     f = claude(answer=ANSWER)
-    g = gist.claude_gist(BILL, "sk-test", "claude-opus-5-5")
+    g = describe.claude_summary(BILL, "sk-test", "claude-opus-5-5")
     assert g == ANSWER
     kw = f.calls[0]
     assert f.client_kw["api_key"] == "sk-test"
     assert kw["model"] == "claude-opus-5-5"
-    assert kw["output_config"]["format"]["schema"] == gist.SCHEMA
+    assert kw["output_config"]["format"]["schema"] == describe.SCHEMA
     assert "ACME POWER" in kw["messages"][0]["content"]
     assert kw["fallbacks"] == "default"
 
 
-def test_claude_gist_cleans_bad_fields(claude):
+def test_claude_summary_cleans_bad_fields(claude):
     claude(answer=dict(ANSWER, doc_date="Oct 3", keywords=["a"] * 10, title="  Long  title. "))
-    g = gist.claude_gist(BILL, "k")
+    g = describe.claude_summary(BILL, "k")
     assert g["doc_date"] == "" and len(g["keywords"]) == 6 and g["title"] == "Long title"
 
 
-def test_claude_gist_caps_long_text(claude):
+def test_claude_summary_caps_long_text(claude):
     f = claude(answer=ANSWER)
-    gist.claude_gist("word " * 50_000, "k")
-    assert len(f.calls[0]["messages"][0]["content"]) < gist.MAX_CHARS + 200
+    describe.claude_summary("word " * 50_000, "k")
+    assert len(f.calls[0]["messages"][0]["content"]) < describe.MAX_CHARS + 200
 
 
 @pytest.mark.parametrize("kw", [{"raise_": "APIStatusError"}, {"raise_": "APIConnectionError"},
@@ -123,14 +123,14 @@ def test_claude_gist_caps_long_text(claude):
 def test_claude_failures_fall_back_to_local(claude, kw):
     claude(**kw)
     settings.update({"claude": {"api_key": "k"}, "document": {"describe": "claude"}})
-    g = gist.describe(BILL, settings.get())
-    assert g == gist.local_gist(BILL)
+    g = describe.describe(BILL, settings.get())
+    assert g == describe.local_summary(BILL)
 
 
 def test_describe_off_and_no_key_skips_claude(claude):
     f = claude(answer=ANSWER)
-    assert gist.describe(BILL, settings.get()) is None  # default: off
-    assert gist.claude_gist(BILL, "") is None
+    assert describe.describe(BILL, settings.get()) is None  # default: off
+    assert describe.claude_summary(BILL, "") is None
     assert not f.calls
 
 

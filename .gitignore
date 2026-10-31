@@ -6,3 +6,4 @@ __pycache__/
 vendor/*.tar.gz
 data-dev/
 dist/
+gist/node_modules/
